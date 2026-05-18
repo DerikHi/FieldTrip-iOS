@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		631ECBE02FAE4C7E00DEE697 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 631ECBDF2FAE4C7E00DEE697 /* FirebaseAuth */; };
+		631ECBE22FAE4C8400DEE697 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 631ECBE12FAE4C8400DEE697 /* FirebaseCore */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		631ECB7E2FAD447A00DEE697 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +57,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				631ECBE22FAE4C8400DEE697 /* FirebaseCore in Frameworks */,
+				631ECBE02FAE4C7E00DEE697 /* FirebaseAuth in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +85,7 @@
 				631ECB722FAD447900DEE697 /* FieldTrip */,
 				631ECB802FAD447A00DEE697 /* FieldTripTests */,
 				631ECB8A2FAD447A00DEE697 /* FieldTripUITests */,
+				631ECBDE2FAE4C7E00DEE697 /* Frameworks */,
 				631ECB712FAD447900DEE697 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -90,6 +98,13 @@
 				631ECB872FAD447A00DEE697 /* FieldTripUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		631ECBDE2FAE4C7E00DEE697 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -112,6 +127,8 @@
 			);
 			name = FieldTrip;
 			packageProductDependencies = (
+				631ECBDF2FAE4C7E00DEE697 /* FirebaseAuth */,
+				631ECBE12FAE4C8400DEE697 /* FirebaseCore */,
 			);
 			productName = FieldTrip;
 			productReference = 631ECB702FAD447900DEE697 /* FieldTrip.app */;
@@ -195,6 +212,9 @@
 			);
 			mainGroup = 631ECB672FAD447900DEE697;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				631ECBDD2FAE48BC00DEE697 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 631ECB712FAD447900DEE697 /* Products */;
 			projectDirPath = "";
@@ -400,6 +420,9 @@
 				DEVELOPMENT_TEAM = X62U57SR6X;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "";
+				"INFOPLIST_FILE[sdk=*]" = "";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "FieldTrip needs your location to tag where you are when adding an entry";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -433,6 +456,8 @@
 				DEVELOPMENT_TEAM = X62U57SR6X;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "FieldTrip needs your location to tag where you are when adding an entry";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -580,6 +605,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		631ECBDD2FAE48BC00DEE697 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.13.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		631ECBDF2FAE4C7E00DEE697 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 631ECBDD2FAE48BC00DEE697 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		631ECBE12FAE4C8400DEE697 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 631ECBDD2FAE48BC00DEE697 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 631ECB682FAD447900DEE697 /* Project object */;
 }

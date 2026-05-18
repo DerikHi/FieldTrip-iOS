@@ -33,7 +33,6 @@ struct InsightEntryView: View {
                 // Step content
                 TabView(selection: $vm.currentStep) {
                     LocationStepView(vm: vm).tag(InsightEntryViewModel.Step.location)
-                    FacilityTypeStepView(vm: vm).tag(InsightEntryViewModel.Step.facilityType)
                     RatingsStepView(vm: vm).tag(InsightEntryViewModel.Step.ratings)
                     CommentStepView(vm: vm).tag(InsightEntryViewModel.Step.comment)
                     PhotoStepView(vm: vm).tag(InsightEntryViewModel.Step.photos)
@@ -102,9 +101,34 @@ struct LocationStepView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                Text("Where is this location?")
-                    .font(.title2.bold())
-                    .padding(.top)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Name (optional)")
+                        .font(.subheadline.bold())
+
+                    TextField("e.g. Flying J Travel Center - Exit 221", text: $vm.draft.locationName)
+                        .padding()
+                        .background(Color(.secondarySystemBackground))
+                        .cornerRadius(10)
+                }
+                .padding(.top)
+
+                if !vm.facilityTypes.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Type")
+                            .font(.subheadline.bold())
+                        Picker("Select a type", selection: $vm.draft.facilityTypeId) {
+                            Text("Select…").tag("")
+                            ForEach(vm.facilityTypes) { type in
+                                Text(type.name).tag(type.id)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.secondarySystemBackground))
+                        .cornerRadius(10)
+                    }
+                }
 
                 // GPS Button
                 Button(action: { vm.requestLocation() }) {
@@ -124,7 +148,7 @@ struct LocationStepView: View {
                     Text("Paste coordinates or map link")
                         .font(.subheadline.bold())
 
-                    TextField("e.g. 46.9319, -118.3878 or Google Maps URL", text: $vm.coordinatePasteInput)
+                    TextField("e.g. 46.9319, -118.3878 or map link", text: $vm.coordinatePasteInput)
                         .padding()
                         .background(Color(.secondarySystemBackground))
                         .cornerRadius(10)
@@ -133,22 +157,66 @@ struct LocationStepView: View {
                         Text(error).font(.caption).foregroundStyle(.red)
                     }
 
-                    Button("Parse") { vm.parseCoordinatePaste() }
-                        .frame(minHeight: 44)
-                        .buttonStyle(.bordered)
+                    HStack(spacing: 12) {
+                        Button(action: {
+                            if let text = UIPasteboard.general.string {
+                                vm.coordinatePasteInput = text
+                                vm.parseCoordinatePaste()
+                            }
+                        }) {
+                            Label("Paste from Clipboard", systemImage: "doc.on.clipboard")
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                        }
+                        .buttonStyle(.borderedProminent)
+
+                        Button("Parse") { vm.parseCoordinatePaste() }
+                            .frame(minHeight: 44)
+                            .buttonStyle(.bordered)
+                    }
+
+                    DisclosureGroup("How to get coordinates") {
+                        VStack(alignment: .leading, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Label("Google Maps", systemImage: "map")
+                                    .font(.subheadline.bold())
+                                Text("Tap and hold on the map to drop a pin. Tap the coordinates at the top of the screen to copy them.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Label("Apple Maps", systemImage: "map.fill")
+                                    .font(.subheadline.bold())
+                                Text("Tap and hold on the map to drop a pin. Swipe up on the pin details, then tap the coordinates to copy them.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Label("Share a Link", systemImage: "square.and.arrow.up")
+                                    .font(.subheadline.bold())
+                                Text("You can also copy a share link from either app and paste it here — the coordinates will be extracted automatically.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.top, 8)
+                    }
+                    .font(.subheadline)
+                    .tint(.secondary)
                 }
 
-                // Map preview
+                // Map preview + Location name
                 if let coord = vm.draft.coordinate {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Confirmed Location")
                             .font(.subheadline.bold())
 
-                        Map(coordinateRegion: .constant(MKCoordinateRegion(
+                        Map(initialPosition: .region(MKCoordinateRegion(
                             center: coord,
                             span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
-                        )), annotationItems: [coord.asAnnotation]) { pin in
-                            MapMarker(coordinate: pin.coordinate, tint: .red)
+                        )), interactionModes: []) {
+                            Marker("Location", coordinate: coord)
                         }
                         .frame(height: 180)
                         .cornerRadius(12)
@@ -158,143 +226,80 @@ struct LocationStepView: View {
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                     }
-                }
 
-                // Location name (optional)
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Location name (optional)")
-                        .font(.subheadline.bold())
-
-                    TextField("e.g. Flying J Travel Center - Exit 221", text: $vm.draft.locationName)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .cornerRadius(10)
+                    if let town = vm.nearestTown {
+                        HStack(spacing: 6) {
+                            Image(systemName: "mappin.and.ellipse")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            Text(town)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 32)
         }
         .scrollDismissesKeyboard(.interactively)
+        .task { await vm.loadCategoriesIfNeeded() }
     }
 }
 
-struct FacilityTypeStepView: View {
-    @ObservedObject var vm: InsightEntryViewModel
-
-    private var facilities: [FacilityType] { vm.facilityTypes.filter { $0.category == "facility" } }
-    private var naturalSpaces: [FacilityType] { vm.facilityTypes.filter { $0.category == "natural_space" } }
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                Text("What type of location is this?")
-                    .font(.title2.bold())
-                    .padding(.top)
-
-                if !facilities.isEmpty {
-                    TypeSection(title: "Facilities", types: facilities, selectedId: $vm.draft.facilityTypeId)
-                }
-
-                if !naturalSpaces.isEmpty {
-                    TypeSection(title: "Natural Spaces", types: naturalSpaces, selectedId: $vm.draft.facilityTypeId)
-                }
-            }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 32)
-        }
-        .onAppear {
-            if vm.draft.facilityTypeId.isEmpty && !vm.facilityTypes.isEmpty {
-                vm.draft.facilityTypeId = vm.facilityTypes.first?.id ?? ""
-            }
-        }
-    }
-}
-
-private struct TypeSection: View {
-    let title: String
-    let types: [FacilityType]
-    @Binding var selectedId: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title).font(.headline)
-
-            ForEach(types) { type in
-                Button(action: { selectedId = type.id }) {
-                    HStack(spacing: 16) {
-                        if let icon = type.icon {
-                            Image(systemName: icon)
-                                .font(.title3)
-                                .frame(width: 28)
-                        }
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(type.name).font(.subheadline.bold())
-                            if let desc = type.description {
-                                Text(desc).font(.caption).foregroundStyle(.secondary)
-                            }
-                        }
-                        Spacer()
-                        if selectedId == type.id {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.tint)
-                        }
-                    }
-                    .padding()
-                    .background(selectedId == type.id ? Color.accentColor.opacity(0.1) : Color(.secondarySystemBackground))
-                    .cornerRadius(10)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(selectedId == type.id ? Color.accentColor : Color.clear, lineWidth: 1.5)
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(type.name)
-                .frame(minHeight: 44)
-            }
-        }
-    }
-}
 
 struct RatingsStepView: View {
     @ObservedObject var vm: InsightEntryViewModel
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                Text("Rate the features")
+            VStack(alignment: .leading, spacing: 16) {
+                Text("What's good to know?")
                     .font(.title2.bold())
                     .padding(.top)
-                Text("Slide to rate 1–5. Skip any that don't apply.")
+                Text("Rate each attribute as Good, Bad, or N/A.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                ForEach($vm.draft.featureRatings) { $rating in
+                ForEach($vm.draft.attributeEntries) { $entry in
                     VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            if let icon = rating.category.icon {
-                                Image(systemName: icon)
+                        Text(entry.name)
+                            .font(.subheadline.bold())
+
+                        HStack(spacing: 8) {
+                            ForEach(AttributeRating.allCases, id: \.self) { option in
+                                Button(action: { entry.rating = option }) {
+                                    Text(option.rawValue)
+                                        .font(.subheadline)
+                                        .frame(maxWidth: .infinity, minHeight: 36)
+                                        .background(entry.rating == option ? colorFor(option).opacity(0.2) : Color(.secondarySystemBackground))
+                                        .foregroundStyle(entry.rating == option ? colorFor(option) : .primary)
+                                        .cornerRadius(8)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .stroke(entry.rating == option ? colorFor(option) : Color.clear, lineWidth: 1.5)
+                                        )
+                                }
+                                .buttonStyle(.plain)
                             }
-                            Text(rating.category.name).font(.subheadline.bold())
-                            Spacer()
-                            Text("\(rating.rating)/5")
-                                .font(.caption.bold())
-                                .monospacedDigit()
                         }
-                        Slider(value: Binding(
-                            get: { Double(rating.rating) },
-                            set: { rating.rating = Int($0) }
-                        ), in: 1...5, step: 1)
-                        .accessibilityLabel("\(rating.category.name) rating")
                     }
                     .padding()
-                    .background(Color(.secondarySystemBackground))
+                    .background(Color(.secondarySystemBackground).opacity(0.5))
                     .cornerRadius(10)
                 }
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 32)
         }
-        .onAppear { if vm.draft.featureRatings.isEmpty { vm.initializeRatings() } }
+    }
+
+    private func colorFor(_ rating: AttributeRating) -> Color {
+        switch rating {
+        case .good: return .green
+        case .bad: return .red
+        case .na: return .gray
+        }
     }
 }
 
@@ -304,11 +309,34 @@ struct CommentStepView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                Text("Add a comment")
+                Text("Overall Rating & Comment")
                     .font(.title2.bold())
                     .padding(.top)
 
                 VStack(alignment: .leading, spacing: 8) {
+                    Text("Overall star rating")
+                        .font(.subheadline.bold())
+
+                    HStack(spacing: 8) {
+                        ForEach(1...5, id: \.self) { star in
+                            Button(action: { vm.draft.starRating = star }) {
+                                Image(systemName: star <= vm.draft.starRating ? "star.fill" : "star")
+                                    .font(.title)
+                                    .foregroundStyle(star <= vm.draft.starRating ? .yellow : .gray.opacity(0.4))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(10)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Comment (optional)")
+                        .font(.subheadline.bold())
+
                     TextEditor(text: $vm.draft.comment)
                         .frame(minHeight: 120)
                         .padding(8)
@@ -324,12 +352,6 @@ struct CommentStepView: View {
                         Text("\(vm.draft.comment.count)/125")
                             .font(.caption)
                             .foregroundStyle(vm.draft.comment.count > 125 ? .red : .secondary)
-                    }
-
-                    if vm.draft.comment.count > 125 {
-                        Text("Comment must be 125 characters or fewer.")
-                            .font(.caption)
-                            .foregroundStyle(.red)
                     }
                 }
 
@@ -355,22 +377,22 @@ struct PhotoStepView: View {
                 Text("Add photos")
                     .font(.title2.bold())
                     .padding(.top)
-                Text("Optional. Up to 5 photos.")
+                Text("Optional. Up to 2 photos.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                PhotosPicker(selection: $selectedItems, maxSelectionCount: 5 - vm.draft.photos.count, matching: .images) {
+                PhotosPicker(selection: $selectedItems, maxSelectionCount: 2 - vm.draft.photos.count, matching: .images) {
                     Label("Select Photos", systemImage: "photo.badge.plus")
                         .frame(maxWidth: .infinity, minHeight: 50)
                 }
                 .buttonStyle(.bordered)
-                .disabled(vm.draft.photos.count >= 5)
+                .disabled(vm.draft.photos.count >= 2)
                 .onChange(of: selectedItems) { _, items in
                     Task {
                         for item in items {
                             if let data = try? await item.loadTransferable(type: Data.self),
                                let image = UIImage(data: data),
-                               vm.draft.photos.count < 5 {
+                               vm.draft.photos.count < 2 {
                                 vm.draft.photos.append(UIImageWrapper(image: image))
                             }
                         }
@@ -379,13 +401,13 @@ struct PhotoStepView: View {
                 }
 
                 if !vm.draft.photos.isEmpty {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 100))], spacing: 8) {
+                    HStack(spacing: 12) {
                         ForEach(vm.draft.photos.indices, id: \.self) { i in
                             ZStack(alignment: .topTrailing) {
                                 Image(uiImage: vm.draft.photos[i].image)
                                     .resizable()
                                     .scaledToFill()
-                                    .frame(width: 100, height: 100)
+                                    .frame(width: 140, height: 140)
                                     .clipped()
                                     .cornerRadius(8)
 
@@ -420,12 +442,42 @@ struct ReviewStepView: View {
                     ErrorBanner(message: error)
                 }
 
-                ReviewRow(label: "Location", value: vm.draft.locationName.isEmpty ? "Unnamed" : vm.draft.locationName)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Location").font(.caption).foregroundStyle(.secondary)
+                    TextField("Location name", text: $vm.draft.locationName)
+                        .font(.subheadline)
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.secondarySystemBackground))
+                .cornerRadius(10)
                 if let lat = vm.draft.latitude, let lng = vm.draft.longitude {
                     ReviewRow(label: "Coordinates", value: String(format: "%.6f, %.6f", lat, lng))
                 }
-                ReviewRow(label: "Facility Type", value: vm.facilityTypes.first { $0.id == vm.draft.facilityTypeId }?.name ?? "—")
-                ReviewRow(label: "Ratings", value: "\(vm.draft.featureRatings.count) categories rated")
+                ReviewRow(label: "Facility Type", value: vm.selectedFacilityTypeName)
+                ReviewRow(label: "Overall Rating", value: String(repeating: "★", count: vm.draft.starRating) + String(repeating: "☆", count: 5 - vm.draft.starRating))
+
+                let rated = vm.draft.attributeEntries.filter { $0.rating != .na }
+                if !rated.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Attributes").font(.caption).foregroundStyle(.secondary)
+                        ForEach(rated) { entry in
+                            HStack {
+                                Text(entry.name)
+                                    .font(.subheadline)
+                                Spacer()
+                                Text(entry.rating.rawValue)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(entry.rating == .good ? .green : .red)
+                            }
+                        }
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(10)
+                }
+
                 if !vm.draft.comment.isEmpty {
                     ReviewRow(label: "Comment", value: vm.draft.comment)
                 }

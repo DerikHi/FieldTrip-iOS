@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Combine
 
 @MainActor
 final class LoginViewModel: ObservableObject {
@@ -10,6 +11,7 @@ final class LoginViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var navigateToHome = false
+    @Published var authenticatedUser: AuthUser?
 
     private let authService: AuthServiceProtocol
     private let haptics = UINotificationFeedbackGenerator()
@@ -44,7 +46,8 @@ final class LoginViewModel: ObservableObject {
         }
 
         do {
-            _ = try await authService.signIn(email: email.lowercased().trimmingCharacters(in: .whitespaces), password: password)
+            let user = try await authService.signIn(email: email.lowercased().trimmingCharacters(in: .whitespaces), password: password)
+            authenticatedUser = user
             navigateToHome = true
         } catch {
             haptics.notificationOccurred(.error)

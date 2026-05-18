@@ -19,10 +19,10 @@ struct RegistrationView: View {
                     .padding(.top, 32)
 
                     VStack(spacing: 16) {
-                        // Full Name
+                        // User Name
                         FormField(
-                            title: "Full Name",
-                            placeholder: "Jane Smith",
+                            title: "User Name",
+                            placeholder: "Jane Doe, FieldStar, or whatever you'd like",
                             text: $vm.fullName,
                             contentType: .name,
                             keyboardType: .default,

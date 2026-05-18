@@ -276,7 +276,7 @@ struct InsightDetailView: View {
     @State private var insights: [Insight] = []
     @State private var isLoading = true
 
-    private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://your-app.vercel.app"
+    private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
 
     var body: some View {
         Group {

@@ -1,4 +1,6 @@
 import SwiftUI
+import Combine
+import FirebaseAuth
 
 struct EmailVerificationView: View {
     @StateObject private var vm = EmailVerificationViewModel()
@@ -83,13 +85,8 @@ struct EmailVerificationView: View {
 
             Spacer()
         }
-        .navigationBarBackButtonHidden()
         .onAppear { vm.startPolling() }
         .onDisappear { vm.stopPolling() }
-        .navigationDestination(isPresented: $vm.isVerified) {
-            // TODO: Navigate to Home/Dashboard
-            Text("Home")
-        }
     }
 }
 

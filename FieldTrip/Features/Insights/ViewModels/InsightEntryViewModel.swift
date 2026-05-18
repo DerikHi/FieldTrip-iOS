@@ -3,6 +3,7 @@ import CoreLocation
 import UIKit
 import SwiftUI
 import Network
+import Combine
 
 @MainActor
 final class InsightEntryViewModel: NSObject, ObservableObject {
@@ -25,21 +26,22 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
     @Published var facilityTypes: [FacilityType] = []
     @Published var featureCategories: [FeatureCategory] = []
 
+    // Reverse geocoding
+    @Published var nearestTown: String?
+
     // Network
     @Published var isOffline = false
 
     enum Step: Int, CaseIterable {
         case location = 0
-        case facilityType = 1
-        case ratings = 2
-        case comment = 3
-        case photos = 4
-        case review = 5
+        case ratings = 1
+        case comment = 2
+        case photos = 3
+        case review = 4
 
         var title: String {
             switch self {
             case .location: return "Location"
-            case .facilityType: return "Facility Type"
             case .ratings: return "Rate Features"
             case .comment: return "Comment"
             case .photos: return "Photos"
@@ -50,7 +52,8 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
 
     private let locationManager = CLLocationManager()
     private let networkMonitor = NWPathMonitor()
-    private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://your-app.vercel.app"
+    private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
+    private var userRequestedLocation = false
 
     override init() {
         super.init()
@@ -61,10 +64,13 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
 
     // MARK: - Navigation
 
+    var selectedFacilityTypeName: String {
+        facilityTypes.first(where: { $0.id == draft.facilityTypeId })?.name ?? "—"
+    }
+
     var canAdvance: Bool {
         switch currentStep {
         case .location: return draft.hasValidCoordinates
-        case .facilityType: return !draft.facilityTypeId.isEmpty
         case .ratings, .comment, .photos: return true
         case .review: return true
         }
@@ -73,7 +79,47 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
     func advance() {
         guard let nextIndex = Step.allCases.firstIndex(of: currentStep).map({ $0 + 1 }),
               nextIndex < Step.allCases.count else { return }
-        currentStep = Step.allCases[nextIndex]
+        let nextStep = Step.allCases[nextIndex]
+        if nextStep == .ratings && draft.attributeEntries.isEmpty {
+            let attrs = attributesForSelectedFacilityType()
+            draft.attributeEntries = attrs.map { AttributeEntry(name: $0) }
+        }
+        currentStep = nextStep
+    }
+
+    private func attributesForSelectedFacilityType() -> [String] {
+        let name = facilityTypes.first(where: { $0.id == draft.facilityTypeId })?.name ?? ""
+        if name.localizedCaseInsensitiveContains("hotel") {
+            return Self.hotelAttributes
+        }
+        return Self.defaultAttributes
+    }
+
+    private static let hotelAttributes = [
+        "Clean Room", "Clean Bathroom", "Feels Safe", "Friendly Staff",
+        "Price", "Breakfast", "Gov Rate Available",
+        "Pet Friendly", "LGBTQ+ Friendly"
+    ]
+
+    private static let defaultAttributes = [
+        "Clean", "Clean Bathroom", "Feels Safe", "Friendly Staff",
+        "Price", "Food Options", "Pet Friendly", "LGBTQ+ Friendly"
+    ]
+
+    private func placeTypeForFacility(_ name: String) -> String {
+        switch name {
+        case "Hotels":
+            return "Hotel"
+        case "Restaurants", "Coffee Shops", "Breweries/Wineries", "Bakeries":
+            return "Restaurant"
+        case "Gas Stations", "Truck Stops", "EV Charging Stations",
+             "Grocery Stores", "Convenience Stores", "Pharmacies",
+             "Outdoor/Camping Supply Stores", "Laundromats",
+             "Hospitals/Urgent Care", "Pet Boarding/Vet Clinics", "Post Offices":
+            return "Convenience Store"
+        default:
+            return "Rest Area"
+        }
     }
 
     func goBack() {
@@ -85,6 +131,7 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
     // MARK: - Location
 
     func requestLocation() {
+        userRequestedLocation = true
         switch locationManager.authorizationStatus {
         case .notDetermined:
             locationManager.requestWhenInUseAuthorization()
@@ -107,8 +154,24 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
             draft.latitude = coords.lat
             draft.longitude = coords.lng
             coordinatePasteError = nil
+            reverseGeocode(latitude: coords.lat, longitude: coords.lng)
         } else {
             coordinatePasteError = "Could not parse coordinates. Try 'lat, lng' format or paste a Google/Apple Maps URL."
+        }
+    }
+
+    func reverseGeocode(latitude: Double, longitude: Double) {
+        nearestTown = nil
+        let location = CLLocation(latitude: latitude, longitude: longitude)
+        Task {
+            let geocoder = CLGeocoder()
+            guard let placemark = try? await geocoder.reverseGeocodeLocation(location).first else { return }
+            let town = placemark.locality ?? placemark.subAdministrativeArea ?? placemark.administrativeArea
+            if let town, let state = placemark.administrativeArea, state != town {
+                nearestTown = "\(town), \(state)"
+            } else if let town {
+                nearestTown = town
+            }
         }
     }
 
@@ -123,7 +186,7 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
     // MARK: - Submit
 
     func submit() async {
-        guard draft.hasValidCoordinates, !draft.facilityTypeId.isEmpty else { return }
+        guard draft.hasValidCoordinates else { return }
 
         isLoading = true
         errorMessage = nil
@@ -156,22 +219,49 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "latitude": draft.latitude!,
             "longitude": draft.longitude!,
             "locationName": draft.locationName,
-            "facilityTypeId": draft.facilityTypeId,
             "comment": draft.comment,
             "isPublic": draft.isPublic,
-            "featureRatings": draft.featureRatings.map {
-                ["featureCategoryId": $0.category.id, "rating": $0.rating]
-            }
+            "starRating": draft.starRating,
+            "attributeRatings": draft.attributeEntries
+                .filter { $0.rating != .na }
+                .map {
+                    ["attributeName": $0.name, "rating": $0.rating == .good ? "good" : "bad"]
+                }
         ]
 
+        if let town = nearestTown, !town.isEmpty {
+            body["town"] = town
+        }
+
+        if !draft.facilityTypeId.isEmpty {
+            if draft.facilityTypeId.hasPrefix("fb-") {
+                body["placeType"] = placeTypeForFacility(selectedFacilityTypeName)
+                body["facilityTypeName"] = selectedFacilityTypeName
+            } else {
+                body["facilityTypeId"] = draft.facilityTypeId
+            }
+        } else if let placeType = draft.placeType?.rawValue {
+            body["placeType"] = placeType
+        }
+
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let (data, _) = try await URLSession.shared.data(for: request)
-        let response = try JSONDecoder.apiDecoder.decode(APIResponse<Insight>.self, from: data)
-        return response.data.id
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
+            let errorBody = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw NSError(domain: "InsightAPI", code: http.statusCode, userInfo: [NSLocalizedDescriptionKey: errorBody])
+        }
+
+        let decoded = try JSONDecoder.apiDecoder.decode(APIResponse<InsightIDResponse>.self, from: data)
+        return decoded.data.id
+    }
+
+    private struct InsightIDResponse: Decodable {
+        let id: String
     }
 
     private func uploadPendingPhotos(insightId: String, token: String) async {
@@ -211,11 +301,18 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
                 longitude: lng,
                 locationName: draft.locationName,
                 facilityTypeId: draft.facilityTypeId,
+                placeType: draft.placeType?.rawValue ?? "",
+                starRating: draft.starRating,
                 comment: draft.comment,
                 isPublic: draft.isPublic,
                 featureRatings: draft.featureRatings.map {
                     .init(featureCategoryId: $0.category.id, rating: $0.rating)
-                }
+                },
+                attributeRatings: draft.attributeEntries
+                    .filter { $0.rating != .na }
+                    .map {
+                        .init(attributeName: $0.name, rating: $0.rating == .good ? "good" : "bad")
+                    }
             ),
             createdAt: Date()
         )
@@ -242,13 +339,19 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
         var synced: Set<UUID> = []
 
         for item in queue {
-            // Reconstruct and submit
             draft.latitude = item.draft.latitude
             draft.longitude = item.draft.longitude
             draft.locationName = item.draft.locationName
             draft.facilityTypeId = item.draft.facilityTypeId
+            draft.placeType = PlaceType(rawValue: item.draft.placeType)
+            draft.starRating = item.draft.starRating
             draft.comment = item.draft.comment
             draft.isPublic = item.draft.isPublic
+            draft.attributeEntries = item.draft.attributeRatings.map {
+                var entry = AttributeEntry(name: $0.attributeName)
+                entry.rating = AttributeRating(rawValue: $0.rating.capitalized) ?? .na
+                return entry
+            }
 
             if let _ = try? await submitInsight(token: token) {
                 synced.insert(item.id)
@@ -263,7 +366,14 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
 
     // MARK: - Categories
 
+    func loadCategoriesIfNeeded() async {
+        guard facilityTypes.isEmpty else { return }
+        await loadCategories()
+    }
+
     private func loadCategories() async {
+        facilityTypes = Self.fallbackFacilityTypes
+
         guard let url = URL(string: "\(apiBaseURL)/api/categories") else { return }
         let token = KeychainService.retrieve(for: .authToken) ?? ""
         var request = URLRequest(url: url)
@@ -272,12 +382,43 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
         do {
             let (data, _) = try await URLSession.shared.data(for: request)
             let response = try JSONDecoder.apiDecoder.decode(APIResponse<CategoriesResponse>.self, from: data)
-            facilityTypes = response.data.facilityTypes
             featureCategories = response.data.featureCategories
         } catch {
-            // Use cached data if available
+            // API unavailable or returned unexpected format
         }
     }
+
+    static let fallbackFacilityTypes: [FacilityType] = [
+        FacilityType(id: "fb-1", name: "Bakeries", category: "facility", icon: "birthday.cake", description: nil),
+        FacilityType(id: "fb-2", name: "Beaches", category: "natural_space", icon: "beach.umbrella", description: nil),
+        FacilityType(id: "fb-3", name: "Boat Launches", category: "natural_space", icon: "water.waves", description: nil),
+        FacilityType(id: "fb-4", name: "Breweries/Wineries", category: "facility", icon: "wineglass", description: nil),
+        FacilityType(id: "fb-5", name: "Campgrounds", category: "natural_space", icon: "tent.fill", description: nil),
+        FacilityType(id: "fb-6", name: "Coffee Shops", category: "facility", icon: "cup.and.saucer.fill", description: nil),
+        FacilityType(id: "fb-7", name: "Convenience Stores", category: "facility", icon: "basket.fill", description: nil),
+        FacilityType(id: "fb-8", name: "EV Charging Stations", category: "facility", icon: "bolt.car.fill", description: nil),
+        FacilityType(id: "fb-9", name: "Gas Stations", category: "facility", icon: "fuelpump.fill", description: nil),
+        FacilityType(id: "fb-10", name: "Grocery Stores", category: "facility", icon: "cart.fill", description: nil),
+        FacilityType(id: "fb-11", name: "Highway Rest Areas", category: "facility", icon: "car.fill", description: nil),
+        FacilityType(id: "fb-12", name: "Historic Sites", category: "facility", icon: "building.columns", description: nil),
+        FacilityType(id: "fb-13", name: "Hospitals/Urgent Care", category: "facility", icon: "cross.case.fill", description: nil),
+        FacilityType(id: "fb-14", name: "Hotels", category: "facility", icon: "building.2", description: nil),
+        FacilityType(id: "fb-15", name: "Laundromats", category: "facility", icon: "washer.fill", description: nil),
+        FacilityType(id: "fb-16", name: "Museums", category: "facility", icon: "building.columns.fill", description: nil),
+        FacilityType(id: "fb-17", name: "Outdoor/Camping Supply Stores", category: "facility", icon: "backpack.fill", description: nil),
+        FacilityType(id: "fb-18", name: "Pet Boarding/Vet Clinics", category: "facility", icon: "pawprint.fill", description: nil),
+        FacilityType(id: "fb-19", name: "Pharmacies", category: "facility", icon: "pills.fill", description: nil),
+        FacilityType(id: "fb-20", name: "Post Offices", category: "facility", icon: "envelope.fill", description: nil),
+        FacilityType(id: "fb-21", name: "Public Restrooms", category: "facility", icon: "toilet", description: nil),
+        FacilityType(id: "fb-22", name: "Restaurants", category: "facility", icon: "fork.knife", description: nil),
+        FacilityType(id: "fb-23", name: "Roadside Attractions", category: "facility", icon: "star.fill", description: nil),
+        FacilityType(id: "fb-24", name: "RV Parks", category: "natural_space", icon: "bus.fill", description: nil),
+        FacilityType(id: "fb-25", name: "Scenic Overlooks", category: "natural_space", icon: "binoculars.fill", description: nil),
+        FacilityType(id: "fb-26", name: "State/National Parks", category: "natural_space", icon: "leaf.fill", description: nil),
+        FacilityType(id: "fb-27", name: "Trailheads", category: "natural_space", icon: "figure.hiking", description: nil),
+        FacilityType(id: "fb-28", name: "Truck Stops", category: "facility", icon: "truck.box.fill", description: nil),
+        FacilityType(id: "fb-29", name: "Welcome Centers/Visitor Centers", category: "facility", icon: "info.circle.fill", description: nil),
+    ]
 
     // MARK: - Network Monitoring
 
@@ -307,6 +448,7 @@ extension InsightEntryViewModel: CLLocationManagerDelegate {
             draft.latitude = location.coordinate.latitude
             draft.longitude = location.coordinate.longitude
             isGettingLocation = false
+            reverseGeocode(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
         }
     }
 
@@ -320,7 +462,7 @@ extension InsightEntryViewModel: CLLocationManagerDelegate {
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         Task { @MainActor in
             locationAuthStatus = manager.authorizationStatus
-            if manager.authorizationStatus == .authorizedWhenInUse {
+            if manager.authorizationStatus == .authorizedWhenInUse && userRequestedLocation {
                 isGettingLocation = true
                 manager.requestLocation()
             }

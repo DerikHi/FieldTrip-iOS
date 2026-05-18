@@ -1,5 +1,6 @@
 import Foundation
 import CoreLocation
+import UIKit
 
 struct FacilityType: Identifiable, Codable, Hashable {
     let id: String
@@ -22,12 +23,58 @@ struct FeatureRatingInput: Identifiable {
     var rating: Int // 1-5
 }
 
+enum PlaceType: String, CaseIterable, Identifiable {
+    case hotel = "Hotel"
+    case restArea = "Rest Area"
+    case restaurant = "Restaurant"
+    case convenienceStore = "Convenience Store"
+
+    var id: String { rawValue }
+
+    var icon: String {
+        switch self {
+        case .hotel: return "building.2"
+        case .restArea: return "figure.stand"
+        case .restaurant: return "fork.knife"
+        case .convenienceStore: return "cart"
+        }
+    }
+
+    var attributes: [String] {
+        switch self {
+        case .hotel:
+            return ["Clean Room", "Clean Bathroom", "Wear on Furniture and Carpet", "Breakfast", "Ease of Getting a Government Rate", "Price", "Feels Safe", "Pet Friendly", "LGBTQ+ Friendly"]
+        case .restArea:
+            return ["Clean Bathroom", "Feels Safe", "Food Options", "Can Fill a Water Bottle", "Place to Sit", "Pet Friendly", "LGBTQ+ Friendly"]
+        case .restaurant:
+            return ["Clean", "Good Food", "Price", "Friendly Staff", "Location", "Pet Friendly", "LGBTQ+ Friendly"]
+        case .convenienceStore:
+            return ["Clean", "Selection", "Clean Bathroom", "Friendly Staff", "Location", "Pet Friendly", "LGBTQ+ Friendly"]
+        }
+    }
+}
+
+enum AttributeRating: String, CaseIterable {
+    case good = "Good"
+    case bad = "Bad"
+    case na = "N/A"
+}
+
+struct AttributeEntry: Identifiable {
+    let id = UUID()
+    let name: String
+    var rating: AttributeRating = .na
+}
+
 struct InsightDraft {
     var latitude: Double?
     var longitude: Double?
     var locationName: String = ""
     var facilityTypeId: String = ""
+    var placeType: PlaceType?
+    var attributeEntries: [AttributeEntry] = []
     var comment: String = ""
+    var starRating: Int = 3
     var isPublic: Bool = true
     var featureRatings: [FeatureRatingInput] = []
     var photos: [UIImageWrapper] = []
@@ -55,12 +102,21 @@ struct Insight: Identifiable, Codable {
     let userId: String
     let comment: String?
     let isPublic: Bool
+    let placeType: String?
+    let starRating: Int?
     let createdAt: Date
     let updatedAt: Date
     let location: LocationDetail
     let ratings: [FeatureRatingResult]
+    let attributeRatings: [AttributeRatingResult]?
     let photos: [Photo]
     let user: UserSummary
+}
+
+struct AttributeRatingResult: Codable, Identifiable {
+    let id: String
+    let attributeName: String
+    let rating: String
 }
 
 struct LocationDetail: Codable {
@@ -107,13 +163,21 @@ struct PendingInsight: Identifiable, Codable {
         let longitude: Double
         let locationName: String
         let facilityTypeId: String
+        let placeType: String
+        let starRating: Int
         let comment: String
         let isPublic: Bool
         let featureRatings: [CodableRating]
+        let attributeRatings: [CodableAttributeRating]
 
         struct CodableRating: Codable {
             let featureCategoryId: String
             let rating: Int
+        }
+
+        struct CodableAttributeRating: Codable {
+            let attributeName: String
+            let rating: String
         }
     }
 }

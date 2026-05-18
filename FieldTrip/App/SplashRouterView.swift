@@ -24,9 +24,9 @@ struct SplashRouterView: View {
                 LoginView()
 
             case .authenticated(let user):
-                // TODO: Replace with MainTabView(user: user)
-                Text("Welcome, \(user.fullName)")
-                    .font(.largeTitle)
+                NavigationStack {
+                    LandingView(user: user)
+                }
             }
         }
         .onAppear { checkAuthState() }
@@ -47,22 +47,46 @@ struct SplashRouterView: View {
                 return
             }
 
-            // Fetch user profile from API
+            // Fetch or create user profile from API
             Task { @MainActor in
                 do {
                     let token = try await firebaseUser.getIDToken()
                     KeychainService.store(token, for: .authToken)
 
-                    guard let url = URL(string: "\(apiBaseURL)/api/auth/me") else {
+                    guard let meURL = URL(string: "\(apiBaseURL)/api/auth/me") else {
                         authState = .unauthenticated
                         return
                     }
 
-                    var request = URLRequest(url: url)
+                    var request = URLRequest(url: meURL)
                     request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-                    let (data, _) = try await URLSession.shared.data(for: request)
-                    let user = try JSONDecoder.apiDecoder.decode(APIResponse<AuthUser>.self, from: data).data
-                    authState = .authenticated(user)
+                    let (data, response) = try await URLSession.shared.data(for: request)
+                    let http = response as! HTTPURLResponse
+
+                    if http.statusCode == 200 {
+                        let user = try JSONDecoder.apiDecoder.decode(APIResponse<AuthUser>.self, from: data).data
+                        authState = .authenticated(user)
+                    } else if http.statusCode == 404 {
+                        guard let regURL = URL(string: "\(apiBaseURL)/api/auth/register") else {
+                            authState = .unauthenticated
+                            return
+                        }
+                        var regRequest = URLRequest(url: regURL)
+                        regRequest.httpMethod = "POST"
+                        regRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                        regRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                        let body: [String: String] = [
+                            "firebaseUid": firebaseUser.uid,
+                            "email": firebaseUser.email ?? "",
+                            "fullName": firebaseUser.displayName ?? "User"
+                        ]
+                        regRequest.httpBody = try JSONEncoder().encode(body)
+                        let (regData, _) = try await URLSession.shared.data(for: regRequest)
+                        let user = try JSONDecoder.apiDecoder.decode(APIResponse<AuthUser>.self, from: regData).data
+                        authState = .authenticated(user)
+                    } else {
+                        authState = .unauthenticated
+                    }
                 } catch {
                     authState = .unauthenticated
                 }
@@ -71,7 +95,7 @@ struct SplashRouterView: View {
     }
 
     private var apiBaseURL: String {
-        ProcessInfo.processInfo.environment["API_URL"] ?? "https://your-app.vercel.app"
+        ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
     }
 }
 

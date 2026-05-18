@@ -48,7 +48,7 @@ final class AuthService: AuthServiceProtocol {
     private init() {}
 
     // TODO: Replace baseURL with your deployed Vercel URL
-    private let baseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "http://localhost:3000"
+    private let baseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
 
     var currentFirebaseUser: User? { Auth.auth().currentUser }
 
@@ -151,16 +151,30 @@ final class AuthService: AuthServiceProtocol {
         let (data, response) = try await URLSession.shared.data(for: request)
         let http = response as! HTTPURLResponse
 
+        if http.statusCode == 200 {
+            return try JSONDecoder.apiDecoder.decode(APIResponse<AuthUser>.self, from: data).data
+        }
+
         if http.statusCode == 404 {
-            // User not in our database yet — this shouldn't happen in normal flow
-            throw AuthError.userNotFound
+            do {
+                return try await registerInBackend(
+                    firebaseUid: firebaseUser.uid,
+                    email: firebaseUser.email ?? "",
+                    fullName: firebaseUser.displayName ?? "User",
+                    token: token
+                )
+            } catch AuthError.emailAlreadyInUse {
+                // User exists but with a different firebaseUid — retry fetch
+                let (retryData, retryResponse) = try await URLSession.shared.data(for: request)
+                let retryHttp = retryResponse as! HTTPURLResponse
+                guard retryHttp.statusCode == 200 else {
+                    throw AuthError.serverError("Server error \(retryHttp.statusCode)")
+                }
+                return try JSONDecoder.apiDecoder.decode(APIResponse<AuthUser>.self, from: retryData).data
+            }
         }
 
-        guard http.statusCode == 200 else {
-            throw AuthError.serverError("Server error \(http.statusCode)")
-        }
-
-        return try JSONDecoder.apiDecoder.decode(APIResponse<AuthUser>.self, from: data).data
+        throw AuthError.serverError("Server error \(http.statusCode)")
     }
 
     private func registerInBackend(

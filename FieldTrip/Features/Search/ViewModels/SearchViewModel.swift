@@ -1,6 +1,7 @@
 import Foundation
 import CoreLocation
 import MapKit
+import Combine
 
 @MainActor
 final class SearchViewModel: ObservableObject {
@@ -27,7 +28,7 @@ final class SearchViewModel: ObservableObject {
 
     private let locationManager = CLLocationManager()
     private var searchDebounceTask: Task<Void, Never>?
-    private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://your-app.vercel.app"
+    private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
 
     struct SearchResult: Identifiable, Decodable {
         let locationId: String

@@ -161,10 +161,6 @@ struct LoginView: View {
                 .padding(.horizontal, 24)
             }
             .scrollDismissesKeyboard(.interactively)
-            .navigationDestination(isPresented: $vm.navigateToHome) {
-                // TODO: Replace with your HomeView
-                Text("Home") // HomeView()
-            }
             .sheet(isPresented: $showForgotPassword) {
                 ForgotPasswordView()
             }

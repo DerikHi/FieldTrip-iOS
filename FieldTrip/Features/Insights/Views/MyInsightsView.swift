@@ -1,0 +1,455 @@
+import SwiftUI
+import MapKit
+
+struct MyInsightsView: View {
+    let user: AuthUser
+    @State private var entries: [MyEntry] = []
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var selectedFacilityType: String?
+
+    private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
+
+    private var facilityTypeNames: [String] {
+        Array(Set(entries.map { $0.location.facilityType.name })).sorted()
+    }
+
+    private var filteredEntries: [MyEntry] {
+        guard let selected = selectedFacilityType else { return entries }
+        return entries.filter { $0.location.facilityType.name == selected }
+    }
+
+    var body: some View {
+        Group {
+            if isLoading {
+                ProgressView()
+            } else if let error = errorMessage {
+                ContentUnavailableView(
+                    "Unable to Load",
+                    systemImage: "exclamationmark.triangle",
+                    description: Text(error)
+                )
+            } else if entries.isEmpty {
+                ContentUnavailableView(
+                    "No Entries Yet",
+                    systemImage: "tray",
+                    description: Text("Your reviews will appear here after you add your first entry.")
+                )
+            } else {
+                VStack(spacing: 0) {
+                    if facilityTypeNames.count > 1 {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Type")
+                                .font(.subheadline.bold())
+                            Picker("Filter by type", selection: Binding(
+                                get: { selectedFacilityType ?? "" },
+                                set: { selectedFacilityType = $0.isEmpty ? nil : $0 }
+                            )) {
+                                Text("All").tag("")
+                                ForEach(facilityTypeNames, id: \.self) { name in
+                                    Text(name).tag(name)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(.secondarySystemBackground))
+                            .cornerRadius(10)
+                        }
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+
+                        Divider()
+                    }
+
+                    List {
+                        ForEach(filteredEntries) { entry in
+                            NavigationLink(destination: MyEntryDetailView(entry: entry)) {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack {
+                                        Text(entry.locationName ?? "Unnamed Location")
+                                            .font(.headline)
+                                        Spacer()
+                                        Text(entry.location.facilityType.name)
+                                            .font(.caption)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 2)
+                                            .background(Color.accentColor.opacity(0.1))
+                                            .cornerRadius(4)
+                                    }
+
+                                    HStack(spacing: 12) {
+                                        if let star = entry.starRating {
+                                            HStack(spacing: 4) {
+                                                Image(systemName: "star.fill")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.yellow)
+                                                Text("\(star)")
+                                                    .font(.subheadline.weight(.medium))
+                                                Text("rating")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        }
+
+                                        Text(entry.createdAt, style: .date)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+
+                                    if let comment = entry.comment, !comment.isEmpty {
+                                        Text(comment)
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(2)
+                                    }
+
+                                    let rated = (entry.attributeRatings ?? []).prefix(4)
+                                    if !rated.isEmpty {
+                                        HStack(spacing: 8) {
+                                            ForEach(rated, id: \.id) { attr in
+                                                HStack(spacing: 2) {
+                                                    Image(systemName: attr.rating == "good" ? "hand.thumbsup.fill" : "hand.thumbsdown.fill")
+                                                        .font(.system(size: 9))
+                                                        .foregroundStyle(attr.rating == "good" ? .green : .red)
+                                                    Text(attr.attributeName)
+                                                        .font(.system(size: 10))
+                                                        .foregroundStyle(.secondary)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        }
+                    }
+                    .listStyle(.plain)
+                }
+            }
+        }
+        .navigationTitle("My Entries")
+        .task { await loadEntries() }
+    }
+
+    private func loadEntries() async {
+        isLoading = true
+        defer { isLoading = false }
+
+        guard let token = KeychainService.retrieve(for: .authToken) else {
+            errorMessage = "Please sign in again."
+            return
+        }
+
+        guard let url = URL(string: "\(apiBaseURL)/api/insights") else {
+            errorMessage = "Invalid server URL."
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            let http = response as! HTTPURLResponse
+
+            guard http.statusCode == 200 else {
+                errorMessage = "Server error (\(http.statusCode))."
+                return
+            }
+
+            let decoded = try JSONDecoder.apiDecoder.decode(
+                APIResponse<MyEntriesPage>.self, from: data
+            )
+            entries = decoded.data.insights
+        } catch {
+            errorMessage = "Could not load your entries."
+        }
+    }
+}
+
+// MARK: - Entry Detail View
+
+struct MyEntryDetailView: View {
+    let entry: MyEntry
+    @State private var checkInCount = 0
+    @State private var isCheckingIn = false
+    @State private var showMapChoice = false
+
+    private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                // Check-in
+                HStack {
+                    Button(action: { Task { await addCheckIn() } }) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(.green)
+                    }
+                    .disabled(isCheckingIn)
+
+                    Text("\(checkInCount)")
+                        .font(.title3.weight(.semibold))
+
+                    Text(checkInCount == 1 ? "check-in" : "check-ins")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.secondarySystemBackground))
+                .cornerRadius(10)
+
+                // Star rating
+                if let star = entry.starRating {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Rating")
+                            .font(.subheadline.bold())
+                        HStack(spacing: 4) {
+                            ForEach(1...5, id: \.self) { s in
+                                Image(systemName: s <= star ? "star.fill" : "star")
+                                    .foregroundStyle(s <= star ? .yellow : .gray.opacity(0.4))
+                            }
+                        }
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(10)
+                }
+
+                // Attributes
+                let rated = (entry.attributeRatings ?? []).filter { $0.rating != "na" }
+                if !rated.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Attributes")
+                            .font(.subheadline.bold())
+                        ForEach(rated, id: \.id) { attr in
+                            HStack {
+                                Text(attr.attributeName)
+                                    .font(.subheadline)
+                                Spacer()
+                                Image(systemName: attr.rating == "good" ? "hand.thumbsup.fill" : "hand.thumbsdown.fill")
+                                    .font(.subheadline)
+                                    .foregroundStyle(attr.rating == "good" ? .green : .red)
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(10)
+                }
+
+                // Comment
+                if let comment = entry.comment, !comment.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Comment")
+                            .font(.subheadline.bold())
+                        Text(comment)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(10)
+                }
+
+                // Photos
+                let photos = entry.photos ?? []
+                if !photos.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Photos")
+                            .font(.subheadline.bold())
+                        ForEach(photos, id: \.id) { photo in
+                            AsyncImage(url: URL(string: photo.url)) { image in
+                                image
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 220)
+                                    .clipped()
+                                    .cornerRadius(10)
+                            } placeholder: {
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(Color(.secondarySystemBackground))
+                                    .frame(height: 220)
+                                    .overlay(ProgressView())
+                            }
+                        }
+                    }
+                }
+
+                // Map
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Location")
+                        .font(.subheadline.bold())
+                    let coordinate = CLLocationCoordinate2D(
+                        latitude: entry.location.latitude,
+                        longitude: entry.location.longitude
+                    )
+                    Map(initialPosition: .region(MKCoordinateRegion(
+                        center: coordinate,
+                        span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+                    )), interactionModes: []) {
+                        Marker(entry.locationName ?? "Location", coordinate: coordinate)
+                    }
+                    .frame(height: 200)
+                    .cornerRadius(10)
+                    .onTapGesture { showMapChoice = true }
+                    .confirmationDialog("Open in Maps", isPresented: $showMapChoice) {
+                        Button("Apple Maps") {
+                            let placemark = MKPlacemark(coordinate: coordinate)
+                            let mapItem = MKMapItem(placemark: placemark)
+                            mapItem.name = entry.locationName
+                            mapItem.openInMaps()
+                        }
+                        Button("Google Maps") {
+                            let urlString = "comgooglemaps://?q=\(entry.location.latitude),\(entry.location.longitude)"
+                            if let url = URL(string: urlString), UIApplication.shared.canOpenURL(url) {
+                                UIApplication.shared.open(url)
+                            } else if let webURL = URL(string: "https://maps.google.com/?q=\(entry.location.latitude),\(entry.location.longitude)") {
+                                UIApplication.shared.open(webURL)
+                            }
+                        }
+                        Button("Cancel", role: .cancel) {}
+                    }
+
+                    Text(String(format: "%.6f, %.6f", entry.location.latitude, entry.location.longitude))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
+        }
+        .navigationTitle(entry.locationName ?? "Entry")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                ShareLink(item: shareSummary, preview: SharePreview(entry.locationName ?? "Entry", image: Image(systemName: "mappin.circle"))) {
+                    Image(systemName: "square.and.arrow.up")
+                }
+            }
+        }
+        .task { await loadCheckInCount() }
+    }
+
+    private func loadCheckInCount() async {
+        guard let token = KeychainService.retrieve(for: .authToken),
+              let url = URL(string: "\(apiBaseURL)/api/checkins?locationId=\(entry.locationId)") else { return }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        guard let (data, _) = try? await URLSession.shared.data(for: request),
+              let decoded = try? JSONDecoder.apiDecoder.decode(APIResponse<CheckInCountResponse>.self, from: data) else { return }
+        checkInCount = decoded.data.count
+    }
+
+    private func addCheckIn() async {
+        isCheckingIn = true
+        defer { isCheckingIn = false }
+
+        guard let token = KeychainService.retrieve(for: .authToken),
+              let url = URL(string: "\(apiBaseURL)/api/checkins") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try? JSONEncoder().encode(["locationId": entry.locationId])
+
+        guard let (data, _) = try? await URLSession.shared.data(for: request),
+              let decoded = try? JSONDecoder.apiDecoder.decode(APIResponse<CheckInResponse>.self, from: data) else { return }
+        checkInCount = decoded.data.count
+    }
+
+    private var shareSummary: String {
+        var lines: [String] = []
+        lines.append(entry.locationName ?? "Unnamed Location")
+        lines.append(entry.location.facilityType.name)
+        if let star = entry.starRating {
+            let stars = String(repeating: "\u{2605}", count: star) + String(repeating: "\u{2606}", count: 5 - star)
+            lines.append(stars)
+        }
+        if let comment = entry.comment, !comment.isEmpty {
+            lines.append(comment)
+        }
+        lines.append("")
+        lines.append("Shared from FieldTrip")
+        return lines.joined(separator: "\n")
+    }
+}
+
+// MARK: - Models
+
+struct MyEntriesPage: Decodable {
+    let insights: [MyEntry]
+}
+
+struct MyEntry: Decodable, Identifiable {
+    let id: String
+    let comment: String?
+    let placeType: String?
+    let starRating: Int?
+    let createdAt: Date
+    let location: MyEntryLocation
+    let attributeRatings: [MyEntryAttribute]?
+    let photos: [MyEntryPhoto]?
+
+    var locationId: String { location.id }
+    var locationName: String? { location.name }
+}
+
+struct MyEntryLocation: Decodable {
+    let id: String
+    let name: String?
+    let latitude: Double
+    let longitude: Double
+    let facilityType: MyEntryFacilityType
+}
+
+struct MyEntryFacilityType: Decodable {
+    let name: String
+}
+
+struct MyEntryAttribute: Decodable, Identifiable {
+    let id: String
+    let attributeName: String
+    let rating: String
+}
+
+struct MyEntryPhoto: Decodable, Identifiable {
+    let id: String
+    let url: String
+}
+
+struct CheckInCountResponse: Decodable {
+    let locationId: String
+    let count: Int
+}
+
+struct CheckInResponse: Decodable {
+    let checkIn: CheckInRecord
+    let count: Int
+}
+
+struct CheckInRecord: Decodable {
+    let id: String
+}
+
+#Preview {
+    NavigationStack {
+        MyInsightsView(user: AuthUser(
+            id: "preview",
+            email: "jane@example.com",
+            fullName: "Jane Smith",
+            role: .user,
+            organization: nil,
+            createdAt: Date()
+        ))
+    }
+}
