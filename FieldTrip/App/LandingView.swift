@@ -81,7 +81,7 @@ struct LandingView: View {
             if show {
                 showFeedback = false
                 let subject = "[FieldTrip Feedback]"
-                let to = "derik.hickling@gmail.com"
+                let to = "info@fieldtrippro.com"
                 if let url = URL(string: "mailto:\(to)?subject=\(subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")") {
                     UIApplication.shared.open(url)
                 }

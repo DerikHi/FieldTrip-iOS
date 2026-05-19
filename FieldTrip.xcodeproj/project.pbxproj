@@ -423,6 +423,7 @@
 				INFOPLIST_FILE = "";
 				"INFOPLIST_FILE[sdk=*]" = "";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "FieldTrip needs your location to tag where you are when adding an entry";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Field​Trip uses your photo library to attach photos to your entries";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -434,7 +435,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.bugsplantsrocks.FieldTrip;
+				PRODUCT_BUNDLE_IDENTIFIER = "com​.fieldtrippro​.​Field​Trip";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -458,6 +459,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "FieldTrip needs your location to tag where you are when adding an entry";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Field​Trip uses your photo library to attach photos to your entries";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -469,7 +471,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.bugsplantsrocks.FieldTrip;
+				PRODUCT_BUNDLE_IDENTIFIER = "com​.fieldtrippro​.​Field​Trip";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -491,7 +493,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.bugsplantsrocks.FieldTripTests;
+				PRODUCT_BUNDLE_IDENTIFIER = "com​.fieldtrippro​.​Field​Trip​Tests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -513,7 +515,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.bugsplantsrocks.FieldTripTests;
+				PRODUCT_BUNDLE_IDENTIFIER = "com​.fieldtrippro​.​Field​Trip​Tests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -533,7 +535,7 @@
 				DEVELOPMENT_TEAM = X62U57SR6X;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.bugsplantsrocks.FieldTripUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = "com​.fieldtrippro​.​Field​Trip​UITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -553,7 +555,7 @@
 				DEVELOPMENT_TEAM = X62U57SR6X;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.bugsplantsrocks.FieldTripUITests;
+				PRODUCT_BUNDLE_IDENTIFIER = "com​.fieldtrippro​.​Field​Trip​UITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
