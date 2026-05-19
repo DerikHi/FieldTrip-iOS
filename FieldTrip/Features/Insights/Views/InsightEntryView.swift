@@ -101,6 +101,11 @@ struct LocationStepView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
+                if let error = vm.errorMessage, vm.currentStep == .location {
+                    ErrorBanner(message: error)
+                        .padding(.top)
+                }
+
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Name (optional)")
                         .font(.subheadline.bold())
@@ -313,6 +318,10 @@ struct CommentStepView: View {
                     .font(.title2.bold())
                     .padding(.top)
 
+                if let error = vm.errorMessage, vm.currentStep == .comment {
+                    ErrorBanner(message: error)
+                }
+
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Overall star rating")
                         .font(.subheadline.bold())
@@ -370,6 +379,7 @@ struct CommentStepView: View {
 struct PhotoStepView: View {
     @ObservedObject var vm: InsightEntryViewModel
     @State private var selectedItems: [PhotosPickerItem] = []
+    @State private var photoError: String?
 
     var body: some View {
         ScrollView {
@@ -381,6 +391,10 @@ struct PhotoStepView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
+                if let error = photoError {
+                    ErrorBanner(message: error)
+                }
+
                 PhotosPicker(selection: $selectedItems, maxSelectionCount: 2 - vm.draft.photos.count, matching: .images) {
                     Label("Select Photos", systemImage: "photo.badge.plus")
                         .frame(maxWidth: .infinity, minHeight: 50)
@@ -389,11 +403,14 @@ struct PhotoStepView: View {
                 .disabled(vm.draft.photos.count >= 2)
                 .onChange(of: selectedItems) { _, items in
                     Task {
+                        photoError = nil
                         for item in items {
                             if let data = try? await item.loadTransferable(type: Data.self),
                                let image = UIImage(data: data),
                                vm.draft.photos.count < 2 {
-                                vm.draft.photos.append(UIImageWrapper(image: image))
+                                if let rejection = await vm.addPhotoIfAppropriate(image) {
+                                    photoError = rejection
+                                }
                             }
                         }
                         selectedItems = []

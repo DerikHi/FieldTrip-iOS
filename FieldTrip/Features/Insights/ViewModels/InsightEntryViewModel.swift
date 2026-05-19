@@ -79,6 +79,25 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
     func advance() {
         guard let nextIndex = Step.allCases.firstIndex(of: currentStep).map({ $0 + 1 }),
               nextIndex < Step.allCases.count else { return }
+
+        errorMessage = nil
+
+        if currentStep == .location && !draft.locationName.isEmpty {
+            let result = ContentModerationService.checkText(draft.locationName)
+            if !result.isClean {
+                errorMessage = result.message
+                return
+            }
+        }
+
+        if currentStep == .comment && !draft.comment.isEmpty {
+            let result = ContentModerationService.checkText(draft.comment)
+            if !result.isClean {
+                errorMessage = result.message
+                return
+            }
+        }
+
         let nextStep = Step.allCases[nextIndex]
         if nextStep == .ratings && draft.attributeEntries.isEmpty {
             let attrs = attributesForSelectedFacilityType()
@@ -175,6 +194,18 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
         }
     }
 
+    // MARK: - Photo Moderation
+
+    func addPhotoIfAppropriate(_ image: UIImage) async -> String? {
+        let result = await ContentModerationService.checkImage(image)
+        if result.isClean {
+            guard draft.photos.count < 2 else { return nil }
+            draft.photos.append(UIImageWrapper(image: image))
+            return nil
+        }
+        return result.message
+    }
+
     // MARK: - Feature Ratings
 
     func initializeRatings() {
@@ -191,6 +222,14 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
         isLoading = true
         errorMessage = nil
         defer { isLoading = false }
+
+        for text in [draft.locationName, draft.comment] where !text.isEmpty {
+            let result = ContentModerationService.checkText(text)
+            if !result.isClean {
+                errorMessage = result.message
+                return
+            }
+        }
 
         if isOffline {
             saveToOfflineQueue()

@@ -25,7 +25,10 @@ final class RegistrationViewModel: ObservableObject {
 
     var nameError: String? {
         guard !fullName.isEmpty else { return nil }
-        return ValidationService.isValidName(fullName) ? nil : "Name must be at least 2 characters."
+        if !ValidationService.isValidName(fullName) { return "Name must be at least 2 characters." }
+        let moderation = ContentModerationService.checkText(fullName)
+        if !moderation.isClean { return moderation.message }
+        return nil
     }
 
     var emailError: String? {
