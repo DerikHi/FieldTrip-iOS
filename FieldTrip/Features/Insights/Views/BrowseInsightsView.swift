@@ -499,6 +499,7 @@ struct LocationDetailView: View {
     @State private var checkInCount = 0
     @State private var isCheckingIn = false
     @State private var showMapChoice = false
+    @State private var fullScreenPhotoURL: URL?
 
     private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
 
@@ -659,6 +660,11 @@ struct LocationDetailView: View {
                                             .frame(height: 220)
                                             .clipped()
                                             .cornerRadius(10)
+                                            .onTapGesture {
+                                                if let url = URL(string: photo.url) {
+                                                    fullScreenPhotoURL = url
+                                                }
+                                            }
                                     } placeholder: {
                                         RoundedRectangle(cornerRadius: 10)
                                             .fill(Color(.secondarySystemBackground))
@@ -724,6 +730,12 @@ struct LocationDetailView: View {
         .task {
             await loadInsights()
             await loadCheckInCount()
+        }
+        .fullScreenCover(item: Binding(
+            get: { fullScreenPhotoURL.map { IdentifiedURL(url: $0) } },
+            set: { fullScreenPhotoURL = $0?.url }
+        )) { wrapper in
+            FullScreenImageView(url: wrapper.url)
         }
     }
 

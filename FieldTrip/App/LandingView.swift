@@ -40,12 +40,12 @@ struct LandingView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .background(Color.white)
+            .background(Color(.systemBackground))
         }
         .navigationTitle("Welcome, \(user.fullName.components(separatedBy: " ").first ?? user.fullName)")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.visible, for: .navigationBar)
-        .toolbarBackground(Color.white, for: .navigationBar)
+        .toolbarBackground(Color(.systemBackground), for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button(action: {

@@ -7,6 +7,7 @@ struct MyInsightsView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var selectedFacilityType: String?
+    @State private var showFilterSheet = false
 
     private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
 
@@ -41,20 +42,22 @@ struct MyInsightsView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Type")
                                 .font(.subheadline.bold())
-                            Picker("Filter by type", selection: Binding(
-                                get: { selectedFacilityType ?? "" },
-                                set: { selectedFacilityType = $0.isEmpty ? nil : $0 }
-                            )) {
-                                Text("All").tag("")
-                                ForEach(facilityTypeNames, id: \.self) { name in
-                                    Text(name).tag(name)
+                            Button {
+                                showFilterSheet = true
+                            } label: {
+                                HStack {
+                                    Text(selectedFacilityType ?? "All")
+                                        .foregroundStyle(.primary)
+                                    Spacer()
+                                    Image(systemName: "chevron.up.chevron.down")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
                                 }
+                                .padding()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(.secondarySystemBackground))
+                                .cornerRadius(10)
                             }
-                            .pickerStyle(.menu)
-                            .padding()
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color(.secondarySystemBackground))
-                            .cornerRadius(10)
                         }
                         .padding(.horizontal)
                         .padding(.vertical, 8)
@@ -130,6 +133,46 @@ struct MyInsightsView: View {
         }
         .navigationTitle("My Entries")
         .task { await loadEntries() }
+        .sheet(isPresented: $showFilterSheet) {
+            NavigationStack {
+                List {
+                    Button {
+                        selectedFacilityType = nil
+                        showFilterSheet = false
+                    } label: {
+                        HStack {
+                            Text("All").foregroundStyle(.primary)
+                            Spacer()
+                            if selectedFacilityType == nil {
+                                Image(systemName: "checkmark").foregroundStyle(Color.accentColor)
+                            }
+                        }
+                    }
+                    ForEach(facilityTypeNames, id: \.self) { name in
+                        Button {
+                            selectedFacilityType = name
+                            showFilterSheet = false
+                        } label: {
+                            HStack {
+                                Text(name).foregroundStyle(.primary)
+                                Spacer()
+                                if selectedFacilityType == name {
+                                    Image(systemName: "checkmark").foregroundStyle(Color.accentColor)
+                                }
+                            }
+                        }
+                    }
+                }
+                .navigationTitle("Filter by Type")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Done") { showFilterSheet = false }
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
+        }
     }
 
     private func loadEntries() async {
@@ -175,6 +218,7 @@ struct MyEntryDetailView: View {
     @State private var checkInCount = 0
     @State private var isCheckingIn = false
     @State private var showMapChoice = false
+    @State private var fullScreenPhotoURL: URL?
 
     private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
 
@@ -274,6 +318,11 @@ struct MyEntryDetailView: View {
                                     .frame(height: 220)
                                     .clipped()
                                     .cornerRadius(10)
+                                    .onTapGesture {
+                                        if let url = URL(string: photo.url) {
+                                            fullScreenPhotoURL = url
+                                        }
+                                    }
                             } placeholder: {
                                 RoundedRectangle(cornerRadius: 10)
                                     .fill(Color(.secondarySystemBackground))
@@ -338,6 +387,12 @@ struct MyEntryDetailView: View {
             }
         }
         .task { await loadCheckInCount() }
+        .fullScreenCover(item: Binding(
+            get: { fullScreenPhotoURL.map { IdentifiedURL(url: $0) } },
+            set: { fullScreenPhotoURL = $0?.url }
+        )) { wrapper in
+            FullScreenImageView(url: wrapper.url)
+        }
     }
 
     private func loadCheckInCount() async {
@@ -385,6 +440,11 @@ struct MyEntryDetailView: View {
 }
 
 // MARK: - Models
+
+struct IdentifiedURL: Identifiable {
+    let url: URL
+    var id: String { url.absoluteString }
+}
 
 struct MyEntriesPage: Decodable {
     let insights: [MyEntry]
