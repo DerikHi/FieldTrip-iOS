@@ -34,9 +34,22 @@
 		631ECB872FAD447A00DEE697 /* FieldTripUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FieldTripUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		631C07652FBF93D700FB5E7C /* Exceptions for "FieldTrip" folder in "FieldTrip" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 631ECB6F2FAD447900DEE697 /* FieldTrip */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		631ECB722FAD447900DEE697 /* FieldTrip */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				631C07652FBF93D700FB5E7C /* Exceptions for "FieldTrip" folder in "FieldTrip" target */,
+			);
 			path = FieldTrip;
 			sourceTree = "<group>";
 		};
@@ -420,7 +433,7 @@
 				DEVELOPMENT_TEAM = X62U57SR6X;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "";
+				INFOPLIST_FILE = FieldTrip/Info.plist;
 				"INFOPLIST_FILE[sdk=*]" = "";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "FieldTrip uses your location to tag entries you create and to alert you when you're near a rated location";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "FieldTrip needs your location to tag where you are when adding an entry";
@@ -458,7 +471,7 @@
 				DEVELOPMENT_TEAM = X62U57SR6X;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "";
+				INFOPLIST_FILE = FieldTrip/Info.plist;
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "FieldTrip uses your location to tag entries you create and to alert you when you're near a rated location";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "FieldTrip needs your location to tag where you are when adding an entry";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Field​Trip uses your photo library to attach photos to your entries";
