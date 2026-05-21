@@ -174,8 +174,25 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
             draft.longitude = coords.lng
             coordinatePasteError = nil
             reverseGeocode(latitude: coords.lat, longitude: coords.lng)
-        } else {
-            coordinatePasteError = "Could not parse coordinates. Try 'lat, lng' format or paste a Google/Apple Maps URL."
+            return
+        }
+
+        // Fall back to forward-geocoding a place/town name
+        Task {
+            let geocoder = CLGeocoder()
+            do {
+                guard let placemark = try await geocoder.geocodeAddressString(trimmed).first,
+                      let location = placemark.location else {
+                    coordinatePasteError = "Could not find that location. Try 'lat, lng', a map link, or a town name like 'Springfield, IL'."
+                    return
+                }
+                draft.latitude = location.coordinate.latitude
+                draft.longitude = location.coordinate.longitude
+                coordinatePasteError = nil
+                reverseGeocode(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
+            } catch {
+                coordinatePasteError = "Could not find that location. Try 'lat, lng', a map link, or a town name like 'Springfield, IL'."
+            }
         }
     }
 

@@ -153,31 +153,27 @@ struct LocationStepView: View {
                     Text("Paste coordinates or map link")
                         .font(.subheadline.bold())
 
-                    TextField("e.g. 46.9319, -118.3878 or map link", text: $vm.coordinatePasteInput)
+                    TextField("Coordinates, map link, or town (e.g. Springfield, IL)", text: $vm.coordinatePasteInput)
                         .padding()
                         .background(Color(.secondarySystemBackground))
                         .cornerRadius(10)
+                        .submitLabel(.search)
+                        .onSubmit { vm.parseCoordinatePaste() }
 
                     if let error = vm.coordinatePasteError {
                         Text(error).font(.caption).foregroundStyle(.red)
                     }
 
-                    HStack(spacing: 12) {
-                        Button(action: {
-                            if let text = UIPasteboard.general.string {
-                                vm.coordinatePasteInput = text
-                                vm.parseCoordinatePaste()
-                            }
-                        }) {
-                            Label("Paste from Clipboard", systemImage: "doc.on.clipboard")
-                                .frame(maxWidth: .infinity, minHeight: 44)
+                    Button(action: {
+                        if let text = UIPasteboard.general.string {
+                            vm.coordinatePasteInput = text
+                            vm.parseCoordinatePaste()
                         }
-                        .buttonStyle(.borderedProminent)
-
-                        Button("Parse") { vm.parseCoordinatePaste() }
-                            .frame(minHeight: 44)
-                            .buttonStyle(.bordered)
+                    }) {
+                        Label("Paste from Clipboard", systemImage: "doc.on.clipboard")
+                            .frame(maxWidth: .infinity, minHeight: 44)
                     }
+                    .buttonStyle(.borderedProminent)
 
                     DisclosureGroup("How to get coordinates") {
                         VStack(alignment: .leading, spacing: 12) {

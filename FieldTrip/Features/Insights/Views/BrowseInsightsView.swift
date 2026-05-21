@@ -125,34 +125,30 @@ struct BrowseInsightsView: View {
                         .buttonStyle(.borderedProminent)
                         .disabled(isGettingLocation)
 
-                        // Paste coordinates
+                        // Paste coordinates or town
                         VStack(alignment: .leading, spacing: 8) {
-                            TextField("Paste coordinates or map link", text: $coordinatePasteInput)
+                            TextField("Coordinates, map link, or town", text: $coordinatePasteInput)
                                 .padding(10)
                                 .background(Color(.secondarySystemBackground))
                                 .cornerRadius(8)
+                                .submitLabel(.search)
+                                .onSubmit { parseCoordinates() }
 
                             if let error = coordinatePasteError {
                                 Text(error).font(.caption).foregroundStyle(.red)
                             }
 
-                            HStack(spacing: 8) {
-                                Button(action: {
-                                    if let text = UIPasteboard.general.string {
-                                        coordinatePasteInput = text
-                                        parseCoordinates()
-                                    }
-                                }) {
-                                    Label("Paste from Clipboard", systemImage: "doc.on.clipboard")
-                                        .frame(maxWidth: .infinity, minHeight: 36)
-                                        .font(.subheadline)
+                            Button(action: {
+                                if let text = UIPasteboard.general.string {
+                                    coordinatePasteInput = text
+                                    parseCoordinates()
                                 }
-                                .buttonStyle(.bordered)
-
-                                Button("Parse") { parseCoordinates() }
-                                    .frame(minHeight: 36)
-                                    .buttonStyle(.bordered)
+                            }) {
+                                Label("Paste from Clipboard", systemImage: "doc.on.clipboard")
+                                    .frame(maxWidth: .infinity, minHeight: 36)
+                                    .font(.subheadline)
                             }
+                            .buttonStyle(.bordered)
                         }
 
                         if hasCoordinates {
@@ -331,8 +327,24 @@ struct BrowseInsightsView: View {
             searchLongitude = coords.lng
             coordinatePasteError = nil
             Task { await search() }
-        } else {
-            coordinatePasteError = "Could not parse coordinates. Try 'lat, lng' format or a map URL."
+            return
+        }
+
+        Task {
+            let geocoder = CLGeocoder()
+            do {
+                guard let placemark = try await geocoder.geocodeAddressString(trimmed).first,
+                      let location = placemark.location else {
+                    coordinatePasteError = "Could not find that location. Try 'lat, lng', a map link, or a town name like 'Springfield, IL'."
+                    return
+                }
+                searchLatitude = location.coordinate.latitude
+                searchLongitude = location.coordinate.longitude
+                coordinatePasteError = nil
+                await search()
+            } catch {
+                coordinatePasteError = "Could not find that location. Try 'lat, lng', a map link, or a town name like 'Springfield, IL'."
+            }
         }
     }
 
@@ -803,6 +815,14 @@ struct LocationDetailView: View {
 
         lines.append("")
         lines.append("Shared from FieldTrip")
+        if let url = NotificationCoordinator.deepLinkURL(
+            id: locationId,
+            name: locationName,
+            lat: latitude,
+            lng: longitude
+        ) {
+            lines.append("Open in app: \(url.absoluteString)")
+        }
         return lines.joined(separator: "\n")
     }
 

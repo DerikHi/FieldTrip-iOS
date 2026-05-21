@@ -435,6 +435,14 @@ struct MyEntryDetailView: View {
         }
         lines.append("")
         lines.append("Shared from FieldTrip")
+        if let url = NotificationCoordinator.deepLinkURL(
+            id: entry.locationId,
+            name: entry.locationName,
+            lat: entry.location.latitude,
+            lng: entry.location.longitude
+        ) {
+            lines.append("Open in app: \(url.absoluteString)")
+        }
         return lines.joined(separator: "\n")
     }
 }

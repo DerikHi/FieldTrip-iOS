@@ -422,6 +422,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "";
 				"INFOPLIST_FILE[sdk=*]" = "";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "FieldTrip uses your location to tag entries you create and to alert you when you're near a rated location";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "FieldTrip needs your location to tag where you are when adding an entry";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Field​Trip uses your photo library to attach photos to your entries";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -458,6 +459,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "FieldTrip uses your location to tag entries you create and to alert you when you're near a rated location";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "FieldTrip needs your location to tag where you are when adding an entry";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Field​Trip uses your photo library to attach photos to your entries";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
