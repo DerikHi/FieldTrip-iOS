@@ -97,6 +97,11 @@ struct InsightEntryView: View {
 
 struct LocationStepView: View {
     @ObservedObject var vm: InsightEntryViewModel
+    @State private var placeSearchName = ""
+    @State private var placeSearchTown = ""
+    @State private var placeSearchResults: [PlaceSearchResult] = []
+    @State private var isSearchingPlace = false
+    @State private var placeSearchPerformed = false
 
     var body: some View {
         ScrollView {
@@ -145,6 +150,63 @@ struct LocationStepView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(vm.isGettingLocation)
+
+                Divider().overlay(Text("or").padding(.horizontal, 8).background(Color(.systemBackground)), alignment: .center)
+
+                // Find a Place
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Find a Place")
+                        .font(.subheadline.bold())
+
+                    TextField("Place name (e.g. Joe's Diner)", text: $placeSearchName)
+                        .padding()
+                        .background(Color(.secondarySystemBackground))
+                        .cornerRadius(10)
+                        .submitLabel(.next)
+
+                    TextField("Town (e.g. Springfield, IL)", text: $placeSearchTown)
+                        .padding()
+                        .background(Color(.secondarySystemBackground))
+                        .cornerRadius(10)
+                        .submitLabel(.search)
+                        .onSubmit { Task { await runPlaceSearch() } }
+
+                    Button(action: { Task { await runPlaceSearch() } }) {
+                        Label(
+                            isSearchingPlace ? "Searching…" : "Search",
+                            systemImage: "magnifyingglass"
+                        )
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isSearchingPlace || placeSearchName.trimmingCharacters(in: .whitespaces).isEmpty)
+
+                    if placeSearchPerformed && placeSearchResults.isEmpty && !isSearchingPlace {
+                        Text("No places found.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    ForEach(placeSearchResults) { result in
+                        Button(action: { selectPlace(result) }) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(result.name)
+                                    .font(.subheadline.weight(.medium))
+                                    .foregroundStyle(.primary)
+                                if !result.address.isEmpty {
+                                    Text(result.address)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(.secondarySystemBackground))
+                            .cornerRadius(10)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
 
                 Divider().overlay(Text("or").padding(.horizontal, 8).background(Color(.systemBackground)), alignment: .center)
 
@@ -245,6 +307,26 @@ struct LocationStepView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .task { await vm.loadCategoriesIfNeeded() }
+    }
+
+    private func runPlaceSearch() async {
+        let name = placeSearchName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+        isSearchingPlace = true
+        placeSearchPerformed = true
+        defer { isSearchingPlace = false }
+        placeSearchResults = await PlaceSearchService.search(name: name, town: placeSearchTown)
+    }
+
+    private func selectPlace(_ result: PlaceSearchResult) {
+        vm.draft.latitude = result.latitude
+        vm.draft.longitude = result.longitude
+        if vm.draft.locationName.trimmingCharacters(in: .whitespaces).isEmpty {
+            vm.draft.locationName = result.name
+        }
+        vm.reverseGeocode(latitude: result.latitude, longitude: result.longitude)
+        placeSearchResults = []
+        placeSearchPerformed = false
     }
 }
 
