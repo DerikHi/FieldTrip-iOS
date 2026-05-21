@@ -177,13 +177,23 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
             return
         }
 
-        // Fall back to forward-geocoding a place/town name
         Task {
+            // Try Plus Code first (e.g. "849VCWC8+R9" or "CWC8+R9 Springfield, IL")
+            if PlusCodeService.looksLikePlusCode(trimmed),
+               let coords = await PlusCodeService.decode(trimmed) {
+                draft.latitude = coords.latitude
+                draft.longitude = coords.longitude
+                coordinatePasteError = nil
+                reverseGeocode(latitude: coords.latitude, longitude: coords.longitude)
+                return
+            }
+
+            // Fall back to forward-geocoding a place/town name
             let geocoder = CLGeocoder()
             do {
                 guard let placemark = try await geocoder.geocodeAddressString(trimmed).first,
                       let location = placemark.location else {
-                    coordinatePasteError = "Could not find that location. Try 'lat, lng', a map link, or a town name like 'Springfield, IL'."
+                    coordinatePasteError = "Could not find that location. Try 'lat, lng', a map link, a Plus Code, or a town name like 'Springfield, IL'."
                     return
                 }
                 draft.latitude = location.coordinate.latitude
@@ -191,7 +201,7 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
                 coordinatePasteError = nil
                 reverseGeocode(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
             } catch {
-                coordinatePasteError = "Could not find that location. Try 'lat, lng', a map link, or a town name like 'Springfield, IL'."
+                coordinatePasteError = "Could not find that location. Try 'lat, lng', a map link, a Plus Code, or a town name like 'Springfield, IL'."
             }
         }
     }

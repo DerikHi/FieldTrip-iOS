@@ -107,7 +107,7 @@ struct LocationStepView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Name (optional)")
+                    Text("Name")
                         .font(.subheadline.bold())
 
                     TextField("e.g. Flying J Travel Center - Exit 221", text: $vm.draft.locationName)
@@ -153,7 +153,7 @@ struct LocationStepView: View {
                     Text("Paste coordinates or map link")
                         .font(.subheadline.bold())
 
-                    TextField("Coordinates, map link, or town (e.g. Springfield, IL)", text: $vm.coordinatePasteInput)
+                    TextField("Coordinates, map link, Plus Code, or town", text: $vm.coordinatePasteInput)
                         .padding()
                         .background(Color(.secondarySystemBackground))
                         .cornerRadius(10)

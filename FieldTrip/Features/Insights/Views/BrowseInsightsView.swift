@@ -331,11 +331,20 @@ struct BrowseInsightsView: View {
         }
 
         Task {
+            if PlusCodeService.looksLikePlusCode(trimmed),
+               let coords = await PlusCodeService.decode(trimmed) {
+                searchLatitude = coords.latitude
+                searchLongitude = coords.longitude
+                coordinatePasteError = nil
+                await search()
+                return
+            }
+
             let geocoder = CLGeocoder()
             do {
                 guard let placemark = try await geocoder.geocodeAddressString(trimmed).first,
                       let location = placemark.location else {
-                    coordinatePasteError = "Could not find that location. Try 'lat, lng', a map link, or a town name like 'Springfield, IL'."
+                    coordinatePasteError = "Could not find that location. Try 'lat, lng', a map link, a Plus Code, or a town name like 'Springfield, IL'."
                     return
                 }
                 searchLatitude = location.coordinate.latitude
@@ -343,7 +352,7 @@ struct BrowseInsightsView: View {
                 coordinatePasteError = nil
                 await search()
             } catch {
-                coordinatePasteError = "Could not find that location. Try 'lat, lng', a map link, or a town name like 'Springfield, IL'."
+                coordinatePasteError = "Could not find that location. Try 'lat, lng', a map link, a Plus Code, or a town name like 'Springfield, IL'."
             }
         }
     }
