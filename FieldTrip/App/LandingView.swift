@@ -8,6 +8,11 @@ struct LandingView: View {
     @State private var showBrowseAll = false
     @State private var showLeaderboard = false
     @State private var showFeedback = false
+    @State private var showPriming = false
+    @State private var showNearbyStatus = false
+    @State private var notificationLocation: NotificationLocationDestination?
+    @ObservedObject private var alerts = LocationAlertService.shared
+    @EnvironmentObject private var notifications: NotificationCoordinator
 
     var body: some View {
         VStack(spacing: 0) {
@@ -56,6 +61,21 @@ struct LandingView: View {
                 }
             }
             ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: { showNearbyStatus = true }) {
+                    ZStack(alignment: .topTrailing) {
+                        Image(systemName: "mappin.and.ellipse")
+                            .font(.body.weight(.medium))
+                        if alerts.locationPermissionGranted && alerts.primingChoice == .yes {
+                            Circle()
+                                .fill(Color.green)
+                                .frame(width: 7, height: 7)
+                                .offset(x: 3, y: -2)
+                        }
+                    }
+                }
+                .accessibilityLabel("Nearby")
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: { showFeedback = true }) {
                     Image(systemName: "envelope")
                         .font(.body.weight(.medium))
@@ -87,7 +107,65 @@ struct LandingView: View {
                 }
             }
         }
+        .sheet(isPresented: $showPriming) {
+            LocationPrimingView(userId: user.id) { }
+        }
+        .sheet(isPresented: $showNearbyStatus) {
+            NearbyStatusView()
+        }
+        .navigationDestination(item: $notificationLocation) { dest in
+            LocationDetailView(
+                locationId: dest.locationId,
+                locationName: dest.locationName,
+                latitude: dest.latitude,
+                longitude: dest.longitude
+            )
+        }
+        .onAppear {
+            alerts.incrementLaunchCount()
+            if alerts.shouldShowPriming(for: user.id) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    showPriming = true
+                }
+            } else {
+                alerts.startIfPossible()
+            }
+            handlePendingNotification()
+        }
+        .onChange(of: notifications.pendingLocationId) { _, _ in
+            handlePendingNotification()
+        }
     }
+}
+
+extension LandingView {
+    private func handlePendingNotification() {
+        guard let id = notifications.pendingLocationId,
+              let lat = notifications.pendingLatitude,
+              let lng = notifications.pendingLongitude else { return }
+        let name = notifications.pendingLocationName
+        let opensMap = notifications.pendingOpensMap
+        notifications.clearPending()
+
+        notificationLocation = NotificationLocationDestination(
+            locationId: id,
+            locationName: name?.isEmpty == false ? name : nil,
+            latitude: lat,
+            longitude: lng
+        )
+
+        if opensMap, let url = URL(string: "http://maps.apple.com/?ll=\(lat),\(lng)\(name.map { "&q=\($0.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")" } ?? "")") {
+            UIApplication.shared.open(url)
+        }
+    }
+}
+
+struct NotificationLocationDestination: Hashable, Identifiable {
+    let locationId: String
+    let locationName: String?
+    let latitude: Double
+    let longitude: Double
+    var id: String { locationId }
 }
 
 private struct BottomBarButton: View {
