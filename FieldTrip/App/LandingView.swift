@@ -7,9 +7,9 @@ struct LandingView: View {
     @State private var showMyEntries = false
     @State private var showBrowseAll = false
     @State private var showLeaderboard = false
-    @State private var showFeedback = false
     @State private var showPriming = false
     @State private var showNearbyStatus = false
+    @State private var showSettings = false
     @State private var notificationLocation: NotificationLocationDestination?
     @ObservedObject private var alerts = LocationAlertService.shared
     @EnvironmentObject private var notifications: NotificationCoordinator
@@ -76,14 +76,18 @@ struct LandingView: View {
                 .accessibilityLabel("Nearby")
             }
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { showFeedback = true }) {
-                    Image(systemName: "envelope")
+                Button(action: { showSettings = true }) {
+                    Image(systemName: "gearshape")
                         .font(.body.weight(.medium))
                 }
+                .accessibilityLabel("Settings")
             }
         }
         .navigationDestination(isPresented: $showLeaderboard) {
             LeaderboardView()
+        }
+        .navigationDestination(isPresented: $showSettings) {
+            SettingsView(user: user)
         }
         .navigationDestination(isPresented: $showSpotAPlate) {
             SpotAPlateView()
@@ -96,16 +100,6 @@ struct LandingView: View {
         }
         .sheet(isPresented: $showAddNew) {
             InsightEntryView()
-        }
-        .onChange(of: showFeedback) { _, show in
-            if show {
-                showFeedback = false
-                let subject = "[FieldTrip Feedback]"
-                let to = "info@fieldtrippro.com"
-                if let url = URL(string: "mailto:\(to)?subject=\(subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")") {
-                    UIApplication.shared.open(url)
-                }
-            }
         }
         .sheet(isPresented: $showPriming) {
             LocationPrimingView(userId: user.id) { }

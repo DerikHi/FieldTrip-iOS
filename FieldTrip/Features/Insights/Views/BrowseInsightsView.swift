@@ -15,10 +15,7 @@ struct BrowseInsightsView: View {
     @State private var searchLatitude: Double?
     @State private var searchLongitude: Double?
     @State private var radiusMiles: Double = 5
-    @State private var coordinatePasteInput = ""
-    @State private var coordinatePasteError: String?
     @State private var isGettingLocation = false
-    @State private var showLocationOptions = false
     @StateObject private var locationHelper = BrowseLocationHelper()
 
     // Facility type filter
@@ -27,6 +24,26 @@ struct BrowseInsightsView: View {
 
     private var hasCoordinates: Bool {
         searchLatitude != nil && searchLongitude != nil
+    }
+
+    private struct LocationGroup {
+        let key: String
+        let locations: [BrowseLocation]
+    }
+
+    private var groupedResults: [LocationGroup] {
+        var groups: [(key: String, locations: [BrowseLocation])] = []
+        for location in results {
+            let name = (location.locationName ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let town = (location.town ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let key = "\(name)|\(town)"
+            if let idx = groups.firstIndex(where: { $0.key == key && !name.isEmpty }) {
+                groups[idx].locations.append(location)
+            } else {
+                groups.append((key: key.isEmpty ? location.locationId : key, locations: [location]))
+            }
+        }
+        return groups.map { LocationGroup(key: $0.key, locations: $0.locations) }
     }
 
     var body: some View {
@@ -83,84 +100,31 @@ struct BrowseInsightsView: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
 
-                // Location search toggle
-                Button(action: { withAnimation { showLocationOptions.toggle() } }) {
-                    HStack {
-                        Image(systemName: showLocationOptions ? "location.fill" : "location")
-                        Text(hasCoordinates ? "Location set" : "Search by location")
-                            .font(.subheadline)
-                        Spacer()
-                        if hasCoordinates {
+                VStack(spacing: 8) {
+                    Button(action: { requestLocation() }) {
+                        Label(
+                            isGettingLocation ? "Getting location…" : "Use Current GPS Location",
+                            systemImage: "location.fill"
+                        )
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isGettingLocation)
+
+                    if hasCoordinates {
+                        HStack(spacing: 8) {
+                            Text(String(format: "📍 %.4f, %.4f", searchLatitude!, searchLongitude!))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
                             Button(action: { clearLocation() }) {
                                 Image(systemName: "xmark.circle.fill")
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        Image(systemName: showLocationOptions ? "chevron.up" : "chevron.down")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(hasCoordinates ? Color.accentColor.opacity(0.1) : Color(.secondarySystemBackground))
-                    .cornerRadius(10)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(hasCoordinates ? Color.accentColor : Color.clear, lineWidth: 1)
-                    )
                 }
-                .buttonStyle(.plain)
                 .padding(.horizontal)
-
-                if showLocationOptions {
-                    VStack(spacing: 12) {
-                        // GPS button
-                        Button(action: { requestLocation() }) {
-                            Label(
-                                isGettingLocation ? "Getting location…" : "Use Current GPS Location",
-                                systemImage: "location.fill"
-                            )
-                            .frame(maxWidth: .infinity, minHeight: 44)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(isGettingLocation)
-
-                        // Paste coordinates or town
-                        VStack(alignment: .leading, spacing: 8) {
-                            TextField("Coordinates, map link, or town", text: $coordinatePasteInput)
-                                .padding(10)
-                                .background(Color(.secondarySystemBackground))
-                                .cornerRadius(8)
-                                .submitLabel(.search)
-                                .onSubmit { parseCoordinates() }
-
-                            if let error = coordinatePasteError {
-                                Text(error).font(.caption).foregroundStyle(.red)
-                            }
-
-                            Button(action: {
-                                if let text = UIPasteboard.general.string {
-                                    coordinatePasteInput = text
-                                    parseCoordinates()
-                                }
-                            }) {
-                                Label("Paste from Clipboard", systemImage: "doc.on.clipboard")
-                                    .frame(maxWidth: .infinity, minHeight: 36)
-                                    .font(.subheadline)
-                            }
-                            .buttonStyle(.bordered)
-                        }
-
-                        if hasCoordinates {
-                            Text(String(format: "📍 %.4f, %.4f", searchLatitude!, searchLongitude!))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .monospacedDigit()
-                        }
-                    }
-                    .padding(.horizontal)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                }
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Search radius: \(Int(radiusMiles)) \(Int(radiusMiles) == 1 ? "mile" : "miles")")
@@ -182,93 +146,40 @@ struct BrowseInsightsView: View {
                 Spacer()
             } else {
                 List {
-                    ForEach(results) { location in
-                        NavigationLink(destination: LocationDetailView(locationId: location.locationId, locationName: location.locationName, latitude: location.latitude, longitude: location.longitude)) {
-                            VStack(alignment: .leading, spacing: 8) {
+                    ForEach(groupedResults, id: \.key) { group in
+                        if group.locations.count == 1 {
+                            let location = group.locations[0]
+                            NavigationLink(destination: LocationDetailView(locationId: location.locationId, locationName: location.locationName, latitude: location.latitude, longitude: location.longitude)) {
+                                BrowseCardContent(location: location)
+                            }
+                        } else {
+                            DisclosureGroup {
+                                ForEach(group.locations) { location in
+                                    NavigationLink(destination: LocationDetailView(locationId: location.locationId, locationName: location.locationName, latitude: location.latitude, longitude: location.longitude)) {
+                                        BrowseCardContent(location: location)
+                                    }
+                                }
+                            } label: {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(location.locationName ?? "Unnamed Location")
+                                        Text(group.locations[0].locationName ?? "Unnamed Location")
                                             .font(.headline)
-                                        if let town = location.town, !town.isEmpty {
+                                        if let town = group.locations[0].town, !town.isEmpty {
                                             Text(town)
                                                 .font(.caption)
                                                 .foregroundStyle(.secondary)
                                         }
                                     }
                                     Spacer()
-                                    if let facilityType = location.facilityTypeName {
-                                        Text(facilityType)
-                                            .font(.caption)
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 2)
-                                            .background(Color.accentColor.opacity(0.1))
-                                            .cornerRadius(4)
-                                    }
-                                }
-
-                                HStack(spacing: 12) {
-                                    if let avgRating = location.avgRating {
-                                        HStack(spacing: 4) {
-                                            Image(systemName: "star.fill")
-                                                .font(.caption)
-                                                .foregroundStyle(.yellow)
-                                            Text(String(format: "%.1f", avgRating))
-                                                .font(.subheadline.weight(.medium))
-                                            Text("rating")
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    }
-
-                                    if let distance = location.distanceMiles {
-                                        HStack(spacing: 4) {
-                                            Image(systemName: "location.fill")
-                                                .font(.caption)
-                                            Text(String(format: "%.1f mi", distance))
-                                                .font(.caption)
-                                        }
-                                        .foregroundStyle(.secondary)
-                                    }
-
-                                    Text("\(location.insightCount) \(location.insightCount == 1 ? "entry" : "entries")")
+                                    Text("\(group.locations.count) entries")
                                         .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 2)
+                                        .background(Color.accentColor.opacity(0.15))
+                                        .cornerRadius(4)
                                 }
-
-                                if let comment = location.comment, !comment.isEmpty {
-                                    Text(comment)
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(2)
-                                }
-
-                                if let reviewer = location.reviewerName {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "person.fill")
-                                            .font(.system(size: 9))
-                                        Text(reviewer)
-                                            .font(.subheadline)
-                                    }
-                                    .foregroundStyle(.secondary)
-                                }
-
-                                let attrs = (location.attributeRatings ?? []).prefix(4)
-                                if !attrs.isEmpty {
-                                    HStack(spacing: 8) {
-                                        ForEach(attrs) { attr in
-                                            HStack(spacing: 2) {
-                                                Image(systemName: attr.rating == "good" ? "hand.thumbsup.fill" : "hand.thumbsdown.fill")
-                                                    .font(.system(size: 9))
-                                                    .foregroundStyle(attr.rating == "good" ? .green : .red)
-                                                Text(attr.attributeName)
-                                                    .font(.system(size: 10))
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                        }
-                                    }
-                                }
+                                .padding(.vertical, 4)
                             }
-                            .padding(.vertical, 4)
                         }
                     }
                 }
@@ -317,50 +228,9 @@ struct BrowseInsightsView: View {
         }
     }
 
-    private func parseCoordinates() {
-        coordinatePasteError = nil
-        let trimmed = coordinatePasteInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-
-        if let coords = ValidationService.parseCoordinates(from: trimmed) {
-            searchLatitude = coords.lat
-            searchLongitude = coords.lng
-            coordinatePasteError = nil
-            Task { await search() }
-            return
-        }
-
-        Task {
-            if PlusCodeService.looksLikePlusCode(trimmed),
-               let coords = await PlusCodeService.decode(trimmed) {
-                searchLatitude = coords.latitude
-                searchLongitude = coords.longitude
-                coordinatePasteError = nil
-                await search()
-                return
-            }
-
-            let geocoder = CLGeocoder()
-            do {
-                guard let placemark = try await geocoder.geocodeAddressString(trimmed).first,
-                      let location = placemark.location else {
-                    coordinatePasteError = "Could not find that location. Try 'lat, lng', a map link, a Plus Code, or a town name like 'Springfield, IL'."
-                    return
-                }
-                searchLatitude = location.coordinate.latitude
-                searchLongitude = location.coordinate.longitude
-                coordinatePasteError = nil
-                await search()
-            } catch {
-                coordinatePasteError = "Could not find that location. Try 'lat, lng', a map link, a Plus Code, or a town name like 'Springfield, IL'."
-            }
-        }
-    }
-
     private func clearLocation() {
         searchLatitude = nil
         searchLongitude = nil
-        coordinatePasteInput = ""
     }
 
     private func loadFacilityTypes() async {
@@ -479,6 +349,104 @@ extension BrowseLocationHelper: CLLocationManagerDelegate {
     }
 }
 
+struct BrowseCardContent: View {
+    let location: BrowseLocation
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(location.locationName ?? "Unnamed Location")
+                        .font(.headline)
+                    if let town = location.town, !town.isEmpty {
+                        Text(town)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+                if let facilityType = location.facilityTypeName {
+                    Text(facilityType)
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(Color.accentColor.opacity(0.1))
+                        .cornerRadius(4)
+                }
+            }
+
+            HStack(spacing: 12) {
+                if let avgRating = location.avgRating {
+                    HStack(spacing: 4) {
+                        Image(systemName: "star.fill")
+                            .font(.caption)
+                            .foregroundStyle(.yellow)
+                        Text(String(format: "%.1f", avgRating))
+                            .font(.subheadline.weight(.medium))
+                        Text("rating")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                if let distance = location.distanceMiles {
+                    HStack(spacing: 4) {
+                        Image(systemName: "location.fill")
+                            .font(.caption)
+                        Text(String(format: "%.1f mi", distance))
+                            .font(.caption)
+                    }
+                    .foregroundStyle(.secondary)
+                }
+                Text("\(location.insightCount) \(location.insightCount == 1 ? "entry" : "entries")")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let comment = location.comment, !comment.isEmpty {
+                Text(comment)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+
+            if let reviewer = location.reviewerName {
+                HStack(spacing: 4) {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 9))
+                    Text(reviewer)
+                        .font(.subheadline)
+                }
+                .foregroundStyle(.secondary)
+            }
+
+            let attrs = (location.attributeRatings ?? []).prefix(4)
+            if !attrs.isEmpty {
+                HStack(spacing: 8) {
+                    ForEach(attrs) { attr in
+                        HStack(spacing: 2) {
+                            Image(systemName: AttributeRatingDisplay.iconName(for: attr.rating))
+                                .font(.system(size: 9))
+                                .foregroundStyle(ratingColor(attr.rating))
+                            Text(attr.attributeName)
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+fileprivate func ratingColor(_ raw: String) -> Color {
+    switch AttributeRatingDisplay.colorIsPositive(for: raw) {
+    case true?: return .green
+    case false?: return .red
+    case nil: return .yellow
+    }
+}
+
 struct BrowseSearchResult: Decodable {
     let results: [BrowseLocation]
 }
@@ -594,8 +562,8 @@ struct LocationDetailView: View {
                                 let grouped = Dictionary(grouping: allAttributes, by: \.attributeName)
                                 ForEach(grouped.keys.sorted(), id: \.self) { name in
                                     let ratings = grouped[name]!
-                                    let goodCount = ratings.filter { $0.rating == "good" }.count
-                                    let badCount = ratings.filter { $0.rating == "bad" }.count
+                                    let goodCount = ratings.filter { AttributeRatingDisplay.colorIsPositive(for: $0.rating) == true }.count
+                                    let badCount = ratings.filter { AttributeRatingDisplay.colorIsPositive(for: $0.rating) == false }.count
                                     let total = goodCount + badCount
 
                                     HStack {
@@ -804,12 +772,12 @@ struct LocationDetailView: View {
             let grouped = Dictionary(grouping: allAttributes, by: \.attributeName)
             for key in grouped.keys.sorted() {
                 let ratings = grouped[key]!
-                let good = ratings.filter { $0.rating == "good" }.count
-                let bad = ratings.filter { $0.rating == "bad" }.count
+                let good = ratings.filter { AttributeRatingDisplay.colorIsPositive(for: $0.rating) == true }.count
+                let bad = ratings.filter { AttributeRatingDisplay.colorIsPositive(for: $0.rating) == false }.count
                 let total = good + bad
                 guard total > 0 else { continue }
                 let pct = Int(Double(good) / Double(total) * 100)
-                lines.append("\(key): \(pct)% positive (\(good) good, \(bad) bad)")
+                lines.append("\(key): \(pct)% positive (\(good) positive, \(bad) negative)")
             }
         }
 

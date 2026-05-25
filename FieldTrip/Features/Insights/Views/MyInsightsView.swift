@@ -112,9 +112,9 @@ struct MyInsightsView: View {
                                         HStack(spacing: 8) {
                                             ForEach(rated, id: \.id) { attr in
                                                 HStack(spacing: 2) {
-                                                    Image(systemName: attr.rating == "good" ? "hand.thumbsup.fill" : "hand.thumbsdown.fill")
+                                                    Image(systemName: AttributeRatingDisplay.iconName(for: attr.rating))
                                                         .font(.system(size: 9))
-                                                        .foregroundStyle(attr.rating == "good" ? .green : .red)
+                                                        .foregroundStyle(ratingColor(attr.rating))
                                                     Text(attr.attributeName)
                                                         .font(.system(size: 10))
                                                         .foregroundStyle(.secondary)
@@ -277,9 +277,15 @@ struct MyEntryDetailView: View {
                                 Text(attr.attributeName)
                                     .font(.subheadline)
                                 Spacer()
-                                Image(systemName: attr.rating == "good" ? "hand.thumbsup.fill" : "hand.thumbsdown.fill")
+                                let label = AttributeRatingDisplay.displayLabel(for: attr.rating)
+                                if !label.isEmpty {
+                                    Text(label)
+                                        .font(.caption.weight(.medium))
+                                        .foregroundStyle(ratingColor(attr.rating))
+                                }
+                                Image(systemName: AttributeRatingDisplay.iconName(for: attr.rating))
                                     .font(.subheadline)
-                                    .foregroundStyle(attr.rating == "good" ? .green : .red)
+                                    .foregroundStyle(ratingColor(attr.rating))
                             }
                         }
                     }
@@ -444,6 +450,14 @@ struct MyEntryDetailView: View {
             lines.append("Open in app: \(url.absoluteString)")
         }
         return lines.joined(separator: "\n")
+    }
+}
+
+fileprivate func ratingColor(_ raw: String) -> Color {
+    switch AttributeRatingDisplay.colorIsPositive(for: raw) {
+    case true?: return .green
+    case false?: return .red
+    case nil: return .yellow
     }
 }
 

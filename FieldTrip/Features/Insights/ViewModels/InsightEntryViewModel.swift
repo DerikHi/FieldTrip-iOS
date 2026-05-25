@@ -295,7 +295,7 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
             "attributeRatings": draft.attributeEntries
                 .filter { $0.rating != .na }
                 .map {
-                    ["attributeName": $0.name, "rating": $0.rating == .good ? "good" : "bad"]
+                    ["attributeName": $0.name, "rating": $0.rating.apiValue]
                 }
         ]
 
@@ -377,7 +377,7 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
                 attributeRatings: draft.attributeEntries
                     .filter { $0.rating != .na }
                     .map {
-                        .init(attributeName: $0.name, rating: $0.rating == .good ? "good" : "bad")
+                        .init(attributeName: $0.name, rating: $0.rating.apiValue)
                     }
             ),
             createdAt: Date()
@@ -415,7 +415,8 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
             draft.isPublic = item.draft.isPublic
             draft.attributeEntries = item.draft.attributeRatings.map {
                 var entry = AttributeEntry(name: $0.attributeName)
-                entry.rating = AttributeRating(rawValue: $0.rating.capitalized) ?? .na
+                let raw = $0.rating.lowercased()
+                entry.rating = AttributeRating.allCases.first { $0.apiValue == raw } ?? .na
                 return entry
             }
 
@@ -455,7 +456,9 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
     }
 
     static let fallbackFacilityTypes: [FacilityType] = [
+        FacilityType(id: "fb-30", name: "Airport Amenities", category: "facility", icon: "airplane", description: nil),
         FacilityType(id: "fb-1", name: "Bakeries", category: "facility", icon: "birthday.cake", description: nil),
+        FacilityType(id: "fb-31", name: "Bar", category: "facility", icon: "wineglass.fill", description: nil),
         FacilityType(id: "fb-2", name: "Beaches", category: "natural_space", icon: "beach.umbrella", description: nil),
         FacilityType(id: "fb-3", name: "Boat Launches", category: "natural_space", icon: "water.waves", description: nil),
         FacilityType(id: "fb-4", name: "Breweries/Wineries", category: "facility", icon: "wineglass", description: nil),

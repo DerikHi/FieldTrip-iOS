@@ -55,9 +55,74 @@ enum PlaceType: String, CaseIterable, Identifiable {
 }
 
 enum AttributeRating: String, CaseIterable {
+    case great = "Great"
     case good = "Good"
-    case bad = "Bad"
+    case meh = "Meh"
+    case nope = "Nope"
     case na = "N/A"
+    case yes = "Yes"
+    case no = "No"
+    case bad = "Bad" // legacy — kept for backward compatibility with previously saved ratings
+
+    /// Returns the API-friendly value (lowercase, ASCII).
+    var apiValue: String {
+        switch self {
+        case .great: return "great"
+        case .good: return "good"
+        case .meh: return "meh"
+        case .nope: return "nope"
+        case .na: return "na"
+        case .yes: return "yes"
+        case .no: return "no"
+        case .bad: return "bad"
+        }
+    }
+
+    static let standardOptions: [AttributeRating] = [.great, .good, .meh, .nope, .na]
+    static let booleanOptions: [AttributeRating] = [.yes, .no]
+
+    /// Some attributes use a Yes/No scale instead of the standard 5-level scale.
+    static func options(for attributeName: String) -> [AttributeRating] {
+        let normalized = attributeName.lowercased()
+        if normalized.contains("pet friendly") || normalized.contains("lgbtq") {
+            return booleanOptions
+        }
+        return standardOptions
+    }
+}
+
+/// Helpers for rendering raw rating strings coming back from the API.
+enum AttributeRatingDisplay {
+    static func iconName(for raw: String) -> String {
+        switch raw.lowercased() {
+        case "great", "good", "yes": return "hand.thumbsup.fill"
+        case "meh": return "minus.circle.fill"
+        case "nope", "no", "bad": return "hand.thumbsdown.fill"
+        default: return "circle"
+        }
+    }
+
+    static func displayLabel(for raw: String) -> String {
+        switch raw.lowercased() {
+        case "great": return "Great"
+        case "good": return "Good"
+        case "meh": return "Meh"
+        case "nope": return "Nope"
+        case "yes": return "Yes"
+        case "no": return "No"
+        case "bad": return "Bad"
+        default: return ""
+        }
+    }
+
+    static func colorIsPositive(for raw: String) -> Bool? {
+        switch raw.lowercased() {
+        case "great", "good", "yes": return true
+        case "meh": return nil
+        case "nope", "no", "bad": return false
+        default: return nil
+        }
+    }
 }
 
 struct AttributeEntry: Identifiable {

@@ -140,6 +140,39 @@ struct LocationStepView: View {
                     }
                 }
 
+                // Map preview (appears as soon as a location has been resolved)
+                if let coord = vm.draft.coordinate {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Confirmed Location")
+                            .font(.subheadline.bold())
+
+                        Map(initialPosition: .region(MKCoordinateRegion(
+                            center: coord,
+                            span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
+                        )), interactionModes: []) {
+                            Marker("Location", coordinate: coord)
+                        }
+                        .frame(height: 180)
+                        .cornerRadius(12)
+
+                        Text(String(format: "%.6f, %.6f", coord.latitude, coord.longitude))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+
+                        if let town = vm.nearestTown {
+                            HStack(spacing: 6) {
+                                Image(systemName: "mappin.and.ellipse")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                                Text(town)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+
                 // GPS Button
                 Button(action: { vm.requestLocation() }) {
                     Label(
@@ -269,38 +302,6 @@ struct LocationStepView: View {
                     .tint(.secondary)
                 }
 
-                // Map preview + Location name
-                if let coord = vm.draft.coordinate {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Confirmed Location")
-                            .font(.subheadline.bold())
-
-                        Map(initialPosition: .region(MKCoordinateRegion(
-                            center: coord,
-                            span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
-                        )), interactionModes: []) {
-                            Marker("Location", coordinate: coord)
-                        }
-                        .frame(height: 180)
-                        .cornerRadius(12)
-
-                        Text(String(format: "%.6f, %.6f", coord.latitude, coord.longitude))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-
-                    if let town = vm.nearestTown {
-                        HStack(spacing: 6) {
-                            Image(systemName: "mappin.and.ellipse")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                            Text(town)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 32)
@@ -340,7 +341,7 @@ struct RatingsStepView: View {
                 Text("What's good to know?")
                     .font(.title2.bold())
                     .padding(.top)
-                Text("Rate each attribute as Good, Bad, or N/A.")
+                Text("Rate each attribute.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
@@ -349,11 +350,12 @@ struct RatingsStepView: View {
                         Text(entry.name)
                             .font(.subheadline.bold())
 
-                        HStack(spacing: 8) {
-                            ForEach(AttributeRating.allCases, id: \.self) { option in
+                        let options = AttributeRating.options(for: entry.name)
+                        HStack(spacing: 6) {
+                            ForEach(options, id: \.self) { option in
                                 Button(action: { entry.rating = option }) {
                                     Text(option.rawValue)
-                                        .font(.subheadline)
+                                        .font(.caption.weight(.medium))
                                         .frame(maxWidth: .infinity, minHeight: 36)
                                         .background(entry.rating == option ? colorFor(option).opacity(0.2) : Color(.secondarySystemBackground))
                                         .foregroundStyle(entry.rating == option ? colorFor(option) : .primary)
@@ -379,9 +381,13 @@ struct RatingsStepView: View {
 
     private func colorFor(_ rating: AttributeRating) -> Color {
         switch rating {
-        case .good: return .green
-        case .bad: return .red
+        case .great: return .green
+        case .good: return .mint
+        case .meh: return .yellow
+        case .nope, .bad: return .red
         case .na: return .gray
+        case .yes: return .green
+        case .no: return .red
         }
     }
 }
