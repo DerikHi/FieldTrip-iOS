@@ -109,15 +109,15 @@ struct MyInsightsView: View {
 
                                     let rated = (entry.attributeRatings ?? []).prefix(4)
                                     if !rated.isEmpty {
-                                        HStack(spacing: 8) {
+                                        VStack(alignment: .leading, spacing: 2) {
                                             ForEach(rated, id: \.id) { attr in
-                                                HStack(spacing: 2) {
-                                                    Image(systemName: AttributeRatingDisplay.iconName(for: attr.rating))
-                                                        .font(.system(size: 9))
-                                                        .foregroundStyle(ratingColor(attr.rating))
+                                                HStack(spacing: 6) {
                                                     Text(attr.attributeName)
-                                                        .font(.system(size: 10))
+                                                        .font(.system(size: 11))
                                                         .foregroundStyle(.secondary)
+                                                    Text(AttributeRatingDisplay.displayLabel(for: attr.rating))
+                                                        .font(.system(size: 11, weight: .semibold))
+                                                        .foregroundStyle(AttributeRatingDisplay.color(for: attr.rating))
                                                 }
                                             }
                                         }
@@ -277,15 +277,9 @@ struct MyEntryDetailView: View {
                                 Text(attr.attributeName)
                                     .font(.subheadline)
                                 Spacer()
-                                let label = AttributeRatingDisplay.displayLabel(for: attr.rating)
-                                if !label.isEmpty {
-                                    Text(label)
-                                        .font(.caption.weight(.medium))
-                                        .foregroundStyle(ratingColor(attr.rating))
-                                }
-                                Image(systemName: AttributeRatingDisplay.iconName(for: attr.rating))
-                                    .font(.subheadline)
-                                    .foregroundStyle(ratingColor(attr.rating))
+                                Text(AttributeRatingDisplay.displayLabel(for: attr.rating))
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(AttributeRatingDisplay.color(for: attr.rating))
                             }
                         }
                     }

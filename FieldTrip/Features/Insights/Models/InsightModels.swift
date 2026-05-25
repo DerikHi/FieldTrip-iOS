@@ -1,6 +1,7 @@
 import Foundation
 import CoreLocation
 import UIKit
+import SwiftUI
 
 struct FacilityType: Identifiable, Codable, Hashable {
     let id: String
@@ -121,6 +122,22 @@ enum AttributeRatingDisplay {
         case "meh": return nil
         case "nope", "no", "bad": return false
         default: return nil
+        }
+    }
+
+    /// Brand color used to render the rating's text label.
+    static func color(for raw: String) -> Color {
+        switch raw.lowercased() {
+        case "great":
+            return Color(red: 0.07, green: 0.45, blue: 0.13)   // dark green
+        case "good", "yes":
+            return Color(red: 0.30, green: 0.78, blue: 0.40)   // light green
+        case "meh":
+            return Color(red: 0.95, green: 0.65, blue: 0.10)   // amber
+        case "nope", "no", "bad":
+            return .red
+        default:
+            return .secondary
         }
     }
 }

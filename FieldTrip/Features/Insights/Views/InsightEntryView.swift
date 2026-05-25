@@ -241,67 +241,6 @@ struct LocationStepView: View {
                     }
                 }
 
-                Divider().overlay(Text("or").padding(.horizontal, 8).background(Color(.systemBackground)), alignment: .center)
-
-                // Paste coordinates
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Paste coordinates or map link")
-                        .font(.subheadline.bold())
-
-                    TextField("Coordinates, map link, Plus Code, or town", text: $vm.coordinatePasteInput)
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .cornerRadius(10)
-                        .submitLabel(.search)
-                        .onSubmit { vm.parseCoordinatePaste() }
-
-                    if let error = vm.coordinatePasteError {
-                        Text(error).font(.caption).foregroundStyle(.red)
-                    }
-
-                    Button(action: {
-                        if let text = UIPasteboard.general.string {
-                            vm.coordinatePasteInput = text
-                            vm.parseCoordinatePaste()
-                        }
-                    }) {
-                        Label("Paste from Clipboard", systemImage: "doc.on.clipboard")
-                            .frame(maxWidth: .infinity, minHeight: 44)
-                    }
-                    .buttonStyle(.borderedProminent)
-
-                    DisclosureGroup("How to get coordinates") {
-                        VStack(alignment: .leading, spacing: 12) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Label("Google Maps", systemImage: "map")
-                                    .font(.subheadline.bold())
-                                Text("Tap and hold on the map to drop a pin. Tap the coordinates at the top of the screen to copy them.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Label("Apple Maps", systemImage: "map.fill")
-                                    .font(.subheadline.bold())
-                                Text("Tap and hold on the map to drop a pin. Swipe up on the pin details, then tap the coordinates to copy them.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Label("Share a Link", systemImage: "square.and.arrow.up")
-                                    .font(.subheadline.bold())
-                                Text("You can also copy a share link from either app and paste it here — the coordinates will be extracted automatically.")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .padding(.top, 8)
-                    }
-                    .font(.subheadline)
-                    .tint(.secondary)
-                }
-
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 32)
