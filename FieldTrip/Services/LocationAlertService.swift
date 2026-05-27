@@ -120,6 +120,15 @@ final class LocationAlertService: NSObject, ObservableObject {
         isMonitoring = false
     }
 
+    /// User explicitly opted out of nearby alerts.
+    /// Stops location monitoring and records the choice so we don't re-prompt.
+    func disableNearbyAlerts() {
+        stop()
+        let userId = primingUserId ?? ""
+        UserDefaults.standard.set(PrimingChoice.no.rawValue, forKey: primingChoiceKey)
+        UserDefaults.standard.set(userId, forKey: primingUserIdKey)
+    }
+
     // MARK: - Nearby fetch
 
     private func refreshNearby(at location: CLLocation) async {

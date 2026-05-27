@@ -11,17 +11,14 @@ struct LoginView: View {
                 VStack(spacing: 24) {
                     // Logo / Header
                     VStack(spacing: 8) {
-                        Image(systemName: "map.fill")
-                            .font(.system(size: 56))
-                            .foregroundStyle(.tint)
-                            .accessibilityLabel("FieldTrip logo")
+                        Image("LogoLogin")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 96, height: 96)
+                            .accessibilityLabel("Field Trip Pro logo")
 
-                        Text("FieldTrip")
+                        Text("Field Trip Pro")
                             .font(.largeTitle.bold())
-
-                        Text("Travel insights for field work")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
                     }
                     .padding(.top, 48)
 
@@ -123,30 +120,6 @@ struct LoginView: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(!vm.isFormValid || vm.isLoading)
                     .accessibilityLabel("Sign in button")
-
-                    Divider()
-                        .padding(.vertical, 4)
-
-                    // Social sign-in stubs
-                    VStack(spacing: 12) {
-                        // TODO: Implement Google Sign-In
-                        Button(action: {}) {
-                            Label("Continue with Google", systemImage: "g.circle.fill")
-                                .frame(maxWidth: .infinity, minHeight: 50)
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(true)
-                        .opacity(0.5)
-
-                        // TODO: Implement Sign in with Apple (required for App Store if offering social auth)
-                        Button(action: {}) {
-                            Label("Continue with Apple", systemImage: "apple.logo")
-                                .frame(maxWidth: .infinity, minHeight: 50)
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(true)
-                        .opacity(0.5)
-                    }
 
                     // Register link
                     HStack {

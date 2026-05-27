@@ -58,4 +58,43 @@ final class PlateService {
 
         return try JSONDecoder.apiDecoder.decode(APIResponse<PlateSightingResponse>.self, from: data).data
     }
+
+    /// Removes one sighting for the given state. Returns the new count for that state.
+    func decrementSighting(state: String) async throws -> PlateSightingResponse {
+        let encoded = state.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? state
+        guard let token = KeychainService.retrieve(for: .authToken),
+              let url = URL(string: "\(baseURL)/api/plate-sightings?state=\(encoded)") else {
+            throw AuthError.serverError("Unable to connect")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        let http = response as! HTTPURLResponse
+        guard http.statusCode == 200 else {
+            throw AuthError.serverError("Server error \(http.statusCode)")
+        }
+
+        return try JSONDecoder.apiDecoder.decode(APIResponse<PlateSightingResponse>.self, from: data).data
+    }
+
+    /// Clears all of the user's plate sightings.
+    func clearAllSightings() async throws {
+        guard let token = KeychainService.retrieve(for: .authToken),
+              let url = URL(string: "\(baseURL)/api/plate-sightings") else {
+            throw AuthError.serverError("Unable to connect")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        let http = response as! HTTPURLResponse
+        guard http.statusCode == 200 else {
+            throw AuthError.serverError("Server error \(http.statusCode)")
+        }
+    }
 }

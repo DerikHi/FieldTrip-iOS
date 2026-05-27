@@ -54,6 +54,17 @@ struct NearbyStatusView: View {
             }
             .buttonStyle(.bordered)
 
+            if case .enabled = status {
+                Button(role: .destructive) {
+                    turnOffLocationServices()
+                } label: {
+                    Text("Turn off location services")
+                        .fontWeight(.medium)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.bordered)
+            }
+
             Spacer().frame(height: 4)
         }
         .padding(.horizontal, 28)
@@ -128,5 +139,10 @@ struct NearbyStatusView: View {
         if let url = URL(string: UIApplication.openSettingsURLString) {
             UIApplication.shared.open(url)
         }
+    }
+
+    private func turnOffLocationServices() {
+        alerts.disableNearbyAlerts()
+        dismiss()
     }
 }

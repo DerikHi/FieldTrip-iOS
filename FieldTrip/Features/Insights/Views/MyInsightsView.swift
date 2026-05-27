@@ -215,10 +215,14 @@ struct MyInsightsView: View {
 
 struct MyEntryDetailView: View {
     let entry: MyEntry
+    @Environment(\.dismiss) private var dismiss
     @State private var checkInCount = 0
     @State private var isCheckingIn = false
     @State private var showMapChoice = false
     @State private var fullScreenPhotoURL: URL?
+    @State private var showDeleteConfirm = false
+    @State private var isDeleting = false
+    @State private var deleteError: String?
 
     private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
 
@@ -381,10 +385,35 @@ struct MyEntryDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
+                Button(role: .destructive) {
+                    showDeleteConfirm = true
+                } label: {
+                    Image(systemName: "trash")
+                        .foregroundStyle(.red)
+                }
+                .disabled(isDeleting)
+                .accessibilityLabel("Delete Entry")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 ShareLink(item: shareSummary, preview: SharePreview(entry.locationName ?? "Entry", image: Image(systemName: "mappin.circle"))) {
                     Image(systemName: "square.and.arrow.up")
                 }
             }
+        }
+        .confirmationDialog(
+            "Delete this entry?",
+            isPresented: $showDeleteConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) { Task { await deleteEntry() } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This permanently removes your rating for this location. This cannot be undone.")
+        }
+        .alert("Delete Failed", isPresented: Binding(get: { deleteError != nil }, set: { if !$0 { deleteError = nil } })) {
+            Button("OK", role: .cancel) { deleteError = nil }
+        } message: {
+            Text(deleteError ?? "")
         }
         .task { await loadCheckInCount() }
         .fullScreenCover(item: Binding(
@@ -392,6 +421,31 @@ struct MyEntryDetailView: View {
             set: { fullScreenPhotoURL = $0?.url }
         )) { wrapper in
             FullScreenImageView(url: wrapper.url)
+        }
+    }
+
+    private func deleteEntry() async {
+        isDeleting = true
+        defer { isDeleting = false }
+
+        guard let token = KeychainService.retrieve(for: .authToken),
+              let url = URL(string: "\(apiBaseURL)/api/insights/\(entry.id)") else {
+            deleteError = "Please sign in again."
+            return
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse, http.statusCode == 200 {
+                dismiss()
+            } else {
+                deleteError = "Could not delete this entry. Please try again later."
+            }
+        } catch {
+            deleteError = "Could not delete this entry. Please try again later."
         }
     }
 

@@ -5,6 +5,7 @@ struct SpotAPlateView: View {
     @State private var tallies: [String: Int] = [:]
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var showClearAllConfirm = false
 
     private static let usStates = [
         "Alabama", "Alaska", "Arizona", "Arkansas", "California",
@@ -60,6 +61,19 @@ struct SpotAPlateView: View {
                     .foregroundStyle(.secondary)
                     .padding(.top, 4)
 
+                if !sortedTallies.isEmpty {
+                    Button(role: .destructive) {
+                        showClearAllConfirm = true
+                    } label: {
+                        Label("Clear All Spotted Plates", systemImage: "trash")
+                            .font(.subheadline)
+                            .frame(maxWidth: .infinity, minHeight: 36)
+                    }
+                    .buttonStyle(.bordered)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                }
+
                 if sortedTallies.isEmpty {
                     ContentUnavailableView(
                         "No Plates Spotted",
@@ -75,6 +89,16 @@ struct SpotAPlateView: View {
                                 Text("\(entry.count)")
                                     .fontWeight(.semibold)
                                     .foregroundStyle(.secondary)
+                                Button {
+                                    Task { await decrement(state: entry.state) }
+                                } label: {
+                                    Image(systemName: "minus.circle.fill")
+                                        .font(.title3)
+                                        .foregroundStyle(.red)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Remove one \(entry.state) sighting")
+                                .padding(.leading, 8)
                             }
                         }
                     }
@@ -89,6 +113,54 @@ struct SpotAPlateView: View {
             selectedState = ""
         }
         .task { await fetchTallies() }
+        .confirmationDialog(
+            "Clear all spotted plates?",
+            isPresented: $showClearAllConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Clear All", role: .destructive) {
+                Task { await clearAll() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This removes every plate sighting for your account. You'll start with a clean map.")
+        }
+    }
+
+    private func decrement(state: String) async {
+        errorMessage = nil
+        let previous = tallies[state] ?? 0
+        let optimistic = max(previous - 1, 0)
+        if optimistic == 0 {
+            tallies.removeValue(forKey: state)
+        } else {
+            tallies[state] = optimistic
+        }
+
+        do {
+            let response = try await PlateService.shared.decrementSighting(state: state)
+            if response.count == 0 {
+                tallies.removeValue(forKey: response.state)
+            } else {
+                tallies[response.state] = response.count
+            }
+        } catch {
+            tallies[state] = previous
+            errorMessage = "Could not remove sighting."
+        }
+    }
+
+    private func clearAll() async {
+        errorMessage = nil
+        let snapshot = tallies
+        tallies = [:]
+
+        do {
+            try await PlateService.shared.clearAllSightings()
+        } catch {
+            tallies = snapshot
+            errorMessage = "Could not clear sightings."
+        }
     }
 
     private var sortedTallies: [(state: String, count: Int)] {

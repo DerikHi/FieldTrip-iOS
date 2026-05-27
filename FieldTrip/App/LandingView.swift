@@ -17,7 +17,7 @@ struct LandingView: View {
     var body: some View {
         VStack(spacing: 0) {
             GeometryReader { geo in
-                Image("WelcomeScreen")
+                Image("LogoWelcome")
                     .resizable()
                     .scaledToFill()
                     .frame(width: geo.size.width, height: geo.size.height)
