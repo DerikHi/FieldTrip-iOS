@@ -387,10 +387,6 @@ struct CommentStepView: View {
                     }
                 }
 
-                Toggle("Share publicly with other users", isOn: $vm.draft.isPublic)
-                    .padding()
-                    .background(Color(.secondarySystemBackground))
-                    .cornerRadius(10)
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 32)
@@ -403,6 +399,7 @@ struct PhotoStepView: View {
     @ObservedObject var vm: InsightEntryViewModel
     @State private var selectedItems: [PhotosPickerItem] = []
     @State private var photoError: String?
+    @State private var showCamera = false
 
     var body: some View {
         ScrollView {
@@ -418,26 +415,50 @@ struct PhotoStepView: View {
                     ErrorBanner(message: error)
                 }
 
-                PhotosPicker(selection: $selectedItems, maxSelectionCount: 2 - vm.draft.photos.count, matching: .images) {
-                    Label("Select Photos", systemImage: "photo.badge.plus")
-                        .frame(maxWidth: .infinity, minHeight: 50)
-                }
-                .buttonStyle(.bordered)
-                .disabled(vm.draft.photos.count >= 2)
-                .onChange(of: selectedItems) { _, items in
-                    Task {
-                        photoError = nil
-                        for item in items {
-                            if let data = try? await item.loadTransferable(type: Data.self),
-                               let image = UIImage(data: data),
-                               vm.draft.photos.count < 2 {
-                                if let rejection = await vm.addPhotoIfAppropriate(image) {
-                                    photoError = rejection
+                HStack(spacing: 12) {
+                    PhotosPicker(selection: $selectedItems, maxSelectionCount: 2 - vm.draft.photos.count, matching: .images) {
+                        Label("Library", systemImage: "photo.on.rectangle")
+                            .frame(maxWidth: .infinity, minHeight: 50)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(vm.draft.photos.count >= 2)
+                    .onChange(of: selectedItems) { _, items in
+                        Task {
+                            photoError = nil
+                            for item in items {
+                                if let data = try? await item.loadTransferable(type: Data.self),
+                                   let image = UIImage(data: data),
+                                   vm.draft.photos.count < 2 {
+                                    if let rejection = await vm.addPhotoIfAppropriate(image) {
+                                        photoError = rejection
+                                    }
                                 }
                             }
+                            selectedItems = []
                         }
-                        selectedItems = []
                     }
+
+                    if CameraPicker.isAvailable {
+                        Button {
+                            photoError = nil
+                            showCamera = true
+                        } label: {
+                            Label("Camera", systemImage: "camera.fill")
+                                .frame(maxWidth: .infinity, minHeight: 50)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(vm.draft.photos.count >= 2)
+                    }
+                }
+                .sheet(isPresented: $showCamera) {
+                    CameraPicker { image in
+                        Task {
+                            if let rejection = await vm.addPhotoIfAppropriate(image) {
+                                photoError = rejection
+                            }
+                        }
+                    }
+                    .ignoresSafeArea()
                 }
 
                 if !vm.draft.photos.isEmpty {
@@ -478,10 +499,16 @@ struct ReviewStepView: View {
                     .font(.title2.bold())
                     .padding(.top)
 
+                Toggle("Share publicly with other users", isOn: $vm.draft.isPublic)
+                    .padding()
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(10)
+
                 if let error = vm.errorMessage {
                     ErrorBanner(message: error)
                 }
 
+                // Location name (editable)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Location").font(.caption).foregroundStyle(.secondary)
                     TextField("Location name", text: $vm.draft.locationName)
@@ -491,24 +518,76 @@ struct ReviewStepView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color(.secondarySystemBackground))
                 .cornerRadius(10)
+
                 if let lat = vm.draft.latitude, let lng = vm.draft.longitude {
                     ReviewRow(label: "Coordinates", value: String(format: "%.6f, %.6f", lat, lng))
                 }
-                ReviewRow(label: "Facility Type", value: vm.selectedFacilityTypeName)
-                ReviewRow(label: "Overall Rating", value: String(repeating: "★", count: vm.draft.starRating) + String(repeating: "☆", count: 5 - vm.draft.starRating))
 
-                let rated = vm.draft.attributeEntries.filter { $0.rating != .na }
-                if !rated.isEmpty {
-                    VStack(alignment: .leading, spacing: 4) {
+                // Facility Type (editable picker)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Facility Type").font(.caption).foregroundStyle(.secondary)
+                    if !vm.facilityTypes.isEmpty {
+                        Picker("Type", selection: $vm.draft.facilityTypeId) {
+                            Text("Select…").tag("")
+                            ForEach(vm.facilityTypes) { type in
+                                Text(type.name).tag(type.id)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .labelsHidden()
+                    } else {
+                        Text(vm.selectedFacilityTypeName).font(.subheadline)
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.secondarySystemBackground))
+                .cornerRadius(10)
+
+                // Overall star rating (editable)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Overall Rating").font(.caption).foregroundStyle(.secondary)
+                    HStack(spacing: 6) {
+                        ForEach(1...5, id: \.self) { star in
+                            Button(action: { vm.draft.starRating = star }) {
+                                Image(systemName: star <= vm.draft.starRating ? "star.fill" : "star")
+                                    .font(.title2)
+                                    .foregroundStyle(.yellow)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.secondarySystemBackground))
+                .cornerRadius(10)
+
+                // Attribute ratings (editable)
+                if !vm.draft.attributeEntries.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
                         Text("Attributes").font(.caption).foregroundStyle(.secondary)
-                        ForEach(rated) { entry in
-                            HStack {
-                                Text(entry.name)
-                                    .font(.subheadline)
-                                Spacer()
-                                Text(entry.rating.rawValue)
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(entry.rating == .good ? .green : .red)
+                        ForEach($vm.draft.attributeEntries) { $entry in
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(entry.name).font(.subheadline.weight(.medium))
+                                let options = AttributeRating.options(for: entry.name)
+                                HStack(spacing: 6) {
+                                    ForEach(options, id: \.self) { option in
+                                        Button(action: { entry.rating = option }) {
+                                            Text(option.rawValue)
+                                                .font(.caption.weight(.medium))
+                                                .frame(maxWidth: .infinity, minHeight: 30)
+                                                .background(entry.rating == option ? AttributeRatingDisplay.color(for: option.apiValue).opacity(0.2) : Color(.systemBackground))
+                                                .foregroundStyle(entry.rating == option ? AttributeRatingDisplay.color(for: option.apiValue) : .primary)
+                                                .cornerRadius(6)
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: 6)
+                                                        .stroke(entry.rating == option ? AttributeRatingDisplay.color(for: option.apiValue) : Color.clear, lineWidth: 1)
+                                                )
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
                             }
                         }
                     }
@@ -518,11 +597,19 @@ struct ReviewStepView: View {
                     .cornerRadius(10)
                 }
 
-                if !vm.draft.comment.isEmpty {
-                    ReviewRow(label: "Comment", value: vm.draft.comment)
+                // Comment (editable)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Comment").font(.caption).foregroundStyle(.secondary)
+                    TextField("Add a comment (optional)", text: $vm.draft.comment, axis: .vertical)
+                        .lineLimit(2...6)
+                        .font(.subheadline)
                 }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.secondarySystemBackground))
+                .cornerRadius(10)
+
                 ReviewRow(label: "Photos", value: "\(vm.draft.photos.count) photo(s)")
-                ReviewRow(label: "Visibility", value: vm.draft.isPublic ? "Public" : "Private")
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 32)

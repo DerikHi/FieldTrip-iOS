@@ -12,6 +12,7 @@ final class LoginViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var navigateToHome = false
     @Published var authenticatedUser: AuthUser?
+    @Published var showEnableBiometricPrompt = false
 
     private let authService: AuthServiceProtocol
     private let haptics = UINotificationFeedbackGenerator()
@@ -47,6 +48,41 @@ final class LoginViewModel: ObservableObject {
 
         do {
             let user = try await authService.signIn(email: email.lowercased().trimmingCharacters(in: .whitespaces), password: password)
+            authenticatedUser = user
+            if BiometricService.availableBiometry != .none && !BiometricService.isEnabled {
+                showEnableBiometricPrompt = true
+            } else {
+                navigateToHome = true
+            }
+        } catch {
+            haptics.notificationOccurred(.error)
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func enableBiometricAndContinue() {
+        BiometricService.enable(email: email.lowercased().trimmingCharacters(in: .whitespaces), password: password)
+        showEnableBiometricPrompt = false
+        navigateToHome = true
+    }
+
+    func skipBiometricAndContinue() {
+        showEnableBiometricPrompt = false
+        navigateToHome = true
+    }
+
+    func signInWithBiometrics() async {
+        let kind = BiometricService.availableBiometry
+        guard kind != .none, BiometricService.isEnabled, !isLoading else { return }
+        isLoading = true
+        defer { isLoading = false }
+
+        guard let creds = await BiometricService.authenticate(reason: "Sign in to Field Trip Pro") else {
+            errorMessage = "Could not authenticate with \(kind.displayName)."
+            return
+        }
+        do {
+            let user = try await authService.signIn(email: creds.email, password: creds.password)
             authenticatedUser = user
             navigateToHome = true
         } catch {

@@ -10,11 +10,32 @@ struct LoginView: View {
             ScrollView {
                 VStack(spacing: 24) {
                     // Logo / Header
-                    VStack(spacing: 8) {
+                    VStack(spacing: 12) {
                         Image("LogoLogin")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 96, height: 96)
+                            .frame(width: 112, height: 112)
+                            .background(
+                                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                                    .fill(.thinMaterial)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                                    .strokeBorder(
+                                        LinearGradient(
+                                            colors: [
+                                                Color.white.opacity(0.6),
+                                                Color.white.opacity(0.1),
+                                                Color.black.opacity(0.1),
+                                            ],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1
+                                    )
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                            .shadow(color: .black.opacity(0.18), radius: 14, x: 0, y: 8)
                             .accessibilityLabel("Field Trip Pro logo")
 
                         Text("Field Trip Pro")
@@ -121,6 +142,17 @@ struct LoginView: View {
                     .disabled(!vm.isFormValid || vm.isLoading)
                     .accessibilityLabel("Sign in button")
 
+                    // Biometric login
+                    let biometry = BiometricService.availableBiometry
+                    if biometry != .none && BiometricService.isEnabled {
+                        Button(action: { Task { await vm.signInWithBiometrics() } }) {
+                            Label("Sign in with \(biometry.displayName)", systemImage: biometry.iconName)
+                                .frame(maxWidth: .infinity, minHeight: 50)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(vm.isLoading)
+                    }
+
                     // Register link
                     HStack {
                         Text("Don't have an account?")
@@ -139,6 +171,12 @@ struct LoginView: View {
             }
             .sheet(isPresented: $showRegistration) {
                 RegistrationView()
+            }
+            .alert("Enable \(BiometricService.availableBiometry.displayName)?", isPresented: $vm.showEnableBiometricPrompt) {
+                Button("Enable") { vm.enableBiometricAndContinue() }
+                Button("Not Now", role: .cancel) { vm.skipBiometricAndContinue() }
+            } message: {
+                Text("Use \(BiometricService.availableBiometry.displayName) to sign in faster next time.")
             }
         }
     }

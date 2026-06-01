@@ -223,6 +223,7 @@ struct MyEntryDetailView: View {
     @State private var showDeleteConfirm = false
     @State private var isDeleting = false
     @State private var deleteError: String?
+    @State private var showEditReview = false
 
     private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
 
@@ -251,6 +252,15 @@ struct MyEntryDetailView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color(.secondarySystemBackground))
                 .cornerRadius(10)
+
+                // Edit Review button
+                Button {
+                    showEditReview = true
+                } label: {
+                    Label("Edit Review", systemImage: "pencil")
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.bordered)
 
                 // Star rating
                 if let star = entry.starRating {
@@ -422,6 +432,11 @@ struct MyEntryDetailView: View {
         )) { wrapper in
             FullScreenImageView(url: wrapper.url)
         }
+        .sheet(isPresented: $showEditReview) {
+            EditEntryView(entry: entry) {
+                dismiss()
+            }
+        }
     }
 
     private func deleteEntry() async {
@@ -498,14 +513,6 @@ struct MyEntryDetailView: View {
             lines.append("Open in app: \(url.absoluteString)")
         }
         return lines.joined(separator: "\n")
-    }
-}
-
-fileprivate func ratingColor(_ raw: String) -> Color {
-    switch AttributeRatingDisplay.colorIsPositive(for: raw) {
-    case true?: return .green
-    case false?: return .red
-    case nil: return .yellow
     }
 }
 

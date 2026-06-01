@@ -10,6 +10,7 @@ struct LandingView: View {
     @State private var showPriming = false
     @State private var showNearbyStatus = false
     @State private var showSettings = false
+    @State private var useAlternateWelcomeImage = false
     @State private var notificationLocation: NotificationLocationDestination?
     @ObservedObject private var alerts = LocationAlertService.shared
     @EnvironmentObject private var notifications: NotificationCoordinator
@@ -17,7 +18,7 @@ struct LandingView: View {
     var body: some View {
         VStack(spacing: 0) {
             GeometryReader { geo in
-                Image("LogoWelcome")
+                Image(useAlternateWelcomeImage ? "NewWelcomeImage" : "LogoWelcome")
                     .resizable()
                     .scaledToFill()
                     .frame(width: geo.size.width, height: geo.size.height)
@@ -39,7 +40,7 @@ struct LandingView: View {
                 BottomBarButton(icon: "trophy", label: "Board") {
                     showLeaderboard = true
                 }
-                BottomBarButton(icon: "car.rear", label: "Plates") {
+                BottomBarButton(icon: "bird", label: "Lark") {
                     showSpotAPlate = true
                 }
             }
@@ -59,6 +60,15 @@ struct LandingView: View {
                     Image(systemName: "chevron.left")
                         .font(.body.weight(.medium))
                 }
+            }
+            ToolbarItem(placement: .principal) {
+                Button(action: {
+                    withAnimation { useAlternateWelcomeImage.toggle() }
+                }) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.body.weight(.medium))
+                }
+                .accessibilityLabel("Swap welcome image")
             }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: { showNearbyStatus = true }) {
@@ -90,7 +100,7 @@ struct LandingView: View {
             SettingsView(user: user)
         }
         .navigationDestination(isPresented: $showSpotAPlate) {
-            SpotAPlateView()
+            LarkView()
         }
         .navigationDestination(isPresented: $showMyEntries) {
             MyInsightsView(user: user)

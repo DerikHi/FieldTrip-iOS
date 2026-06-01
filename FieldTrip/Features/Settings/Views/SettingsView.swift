@@ -61,6 +61,15 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
+        .overlay {
+            if isWorking {
+                Color.black.opacity(0.2).ignoresSafeArea()
+                ProgressView("Working…")
+                    .padding(20)
+                    .background(.thickMaterial)
+                    .cornerRadius(12)
+            }
+        }
         .confirmationDialog(
             "Clear all your data?",
             isPresented: $showClearDataConfirm,

@@ -439,13 +439,6 @@ struct BrowseCardContent: View {
     }
 }
 
-fileprivate func ratingColor(_ raw: String) -> Color {
-    switch AttributeRatingDisplay.colorIsPositive(for: raw) {
-    case true?: return .green
-    case false?: return .red
-    case nil: return .yellow
-    }
-}
 
 struct BrowseSearchResult: Decodable {
     let results: [BrowseLocation]

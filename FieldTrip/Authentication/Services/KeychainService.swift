@@ -8,6 +8,8 @@ enum KeychainService {
         case authToken = "auth_token"
         case refreshToken = "refresh_token"
         case userId = "user_id"
+        case biometricEmail = "biometric_email"
+        case biometricPassword = "biometric_password"
     }
 
     // MARK: - Store

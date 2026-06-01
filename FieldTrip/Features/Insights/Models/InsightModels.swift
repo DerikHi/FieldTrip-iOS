@@ -94,15 +94,6 @@ enum AttributeRating: String, CaseIterable {
 
 /// Helpers for rendering raw rating strings coming back from the API.
 enum AttributeRatingDisplay {
-    static func iconName(for raw: String) -> String {
-        switch raw.lowercased() {
-        case "great", "good", "yes": return "hand.thumbsup.fill"
-        case "meh": return "minus.circle.fill"
-        case "nope", "no", "bad": return "hand.thumbsdown.fill"
-        default: return "circle"
-        }
-    }
-
     static func displayLabel(for raw: String) -> String {
         switch raw.lowercased() {
         case "great": return "Great"
@@ -129,9 +120,9 @@ enum AttributeRatingDisplay {
     static func color(for raw: String) -> Color {
         switch raw.lowercased() {
         case "great":
-            return Color(red: 0.07, green: 0.45, blue: 0.13)   // dark green
+            return Color(red: 0.00, green: 0.78, blue: 0.20)   // bright green
         case "good", "yes":
-            return Color(red: 0.30, green: 0.78, blue: 0.40)   // light green
+            return Color(red: 0.20, green: 0.55, blue: 0.25)   // medium green
         case "meh":
             return Color(red: 0.95, green: 0.65, blue: 0.10)   // amber
         case "nope", "no", "bad":
