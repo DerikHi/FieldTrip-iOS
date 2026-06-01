@@ -435,8 +435,11 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FieldTrip/Info.plist;
 				"INFOPLIST_FILE[sdk=*]" = "";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Field Trip Pro uses the camera to let you add photos to your reviews.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Field Trip Pro uses Face ID to sign you in quickly and securely.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "FieldTrip uses your location to tag entries you create and to alert you when you're near a rated location";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "FieldTrip needs your location to tag where you are when adding an entry";
+				INFOPLIST_KEY_NSMainCameraUsageDescription = "Field Trip Pro uses the camera to let you add photos to your reviews.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Field​Trip uses your photo library to attach photos to your entries";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -472,8 +475,11 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FieldTrip/Info.plist;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Field Trip Pro uses the camera to let you add photos to your reviews.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Field Trip Pro uses Face ID to sign you in quickly and securely.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "FieldTrip uses your location to tag entries you create and to alert you when you're near a rated location";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "FieldTrip needs your location to tag where you are when adding an entry";
+				INFOPLIST_KEY_NSMainCameraUsageDescription = "Field Trip Pro uses the camera to let you add photos to your reviews.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Field​Trip uses your photo library to attach photos to your entries";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

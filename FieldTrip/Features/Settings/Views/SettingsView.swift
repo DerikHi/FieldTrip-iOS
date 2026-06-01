@@ -4,6 +4,7 @@ struct SettingsView: View {
     let user: AuthUser
     @State private var showClearDataConfirm = false
     @State private var showDeleteAccountConfirm = false
+    @State private var showAdminPhotoSelector = false
     @State private var isWorking = false
     @State private var statusMessage: String?
     @State private var statusIsError = false
@@ -40,6 +41,22 @@ struct SettingsView: View {
                         .cornerRadius(10)
                 }
 
+                if user.isAdmin {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Admin")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        Button {
+                            showAdminPhotoSelector = true
+                        } label: {
+                            Label("Choose Photo of the Week", systemImage: "photo.on.rectangle.angled")
+                                .frame(maxWidth: .infinity, minHeight: 50)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.purple)
+                    }
+                }
+
                 Button(role: .destructive, action: { showClearDataConfirm = true }) {
                     Label("Clear Data", systemImage: "trash")
                         .frame(maxWidth: .infinity, minHeight: 50)
@@ -61,6 +78,9 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showAdminPhotoSelector) {
+            AdminPhotoSelectorView()
+        }
         .overlay {
             if isWorking {
                 Color.black.opacity(0.2).ignoresSafeArea()

@@ -26,22 +26,12 @@ struct LarkView: View {
                 case .spotAPlate:
                     SpotAPlateView()
                 case .photoOfTheWeek:
-                    PhotoOfTheWeekPlaceholder()
+                    PhotoOfTheWeekView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .navigationTitle("Lark")
+        .navigationTitle("For A Lark")
         .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-private struct PhotoOfTheWeekPlaceholder: View {
-    var body: some View {
-        ContentUnavailableView(
-            "Coming Soon",
-            systemImage: "photo.on.rectangle.angled",
-            description: Text("Photo of the Week will appear here in a future update.")
-        )
     }
 }

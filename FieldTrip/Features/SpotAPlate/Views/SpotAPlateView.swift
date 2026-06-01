@@ -106,7 +106,7 @@ struct SpotAPlateView: View {
                 }
             }
         }
-        .navigationTitle("Spot A Plate")
+        .navigationTitle("For A Lark")
         .onChange(of: selectedState) { _, newValue in
             guard !newValue.isEmpty else { return }
             Task { await recordSighting(state: newValue) }
