@@ -27,10 +27,14 @@ struct LandingView: View {
                 Button(action: {
                     try? AuthService.shared.signOut()
                 }) {
-                    Image(systemName: "rectangle.portrait.and.arrow.right")
-                        .font(.body.weight(.medium))
+                    VStack(spacing: 1) {
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                            .font(.body.weight(.medium))
+                        Text("Logout")
+                            .font(.system(size: 9, weight: .medium))
+                    }
                 }
-                .accessibilityLabel("Sign out")
+                .accessibilityLabel("Logout")
             }
             ToolbarItem(placement: .principal) {
                 Button(action: {
