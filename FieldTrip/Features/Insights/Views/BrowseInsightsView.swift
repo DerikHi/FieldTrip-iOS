@@ -689,7 +689,6 @@ struct LocationDetailView: View {
         }
         .navigationTitle(locationName ?? "Location")
         .navigationBarTitleDisplayMode(.inline)
-        .withHomeToolbar()
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 ShareLink(item: shareSummary, preview: SharePreview(locationName ?? "Location", image: Image(systemName: "mappin.circle"))) {
