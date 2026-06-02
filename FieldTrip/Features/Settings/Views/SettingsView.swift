@@ -78,6 +78,7 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
+        .withHomeToolbar()
         .sheet(isPresented: $showAdminPhotoSelector) {
             AdminPhotoSelectorView()
         }

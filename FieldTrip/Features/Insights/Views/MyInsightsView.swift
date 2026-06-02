@@ -132,6 +132,7 @@ struct MyInsightsView: View {
             }
         }
         .navigationTitle("My Entries")
+        .withHomeToolbar()
         .task { await loadEntries() }
         .sheet(isPresented: $showFilterSheet) {
             NavigationStack {
@@ -393,6 +394,7 @@ struct MyEntryDetailView: View {
         }
         .navigationTitle(entry.locationName ?? "Entry")
         .navigationBarTitleDisplayMode(.inline)
+        .withHomeToolbar()
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button(role: .destructive) {

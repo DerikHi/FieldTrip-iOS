@@ -24,9 +24,7 @@ struct SplashRouterView: View {
                 LoginView()
 
             case .authenticated(let user):
-                NavigationStack {
-                    LandingView(user: user)
-                }
+                MainShell(user: user)
             }
         }
         .onAppear { checkAuthState() }

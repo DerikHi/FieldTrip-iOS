@@ -2,52 +2,22 @@ import SwiftUI
 
 struct LandingView: View {
     let user: AuthUser
-    @State private var showSpotAPlate = false
-    @State private var showAddNew = false
-    @State private var showMyEntries = false
-    @State private var showBrowseAll = false
-    @State private var showLeaderboard = false
     @State private var showPriming = false
     @State private var showNearbyStatus = false
-    @State private var showSettings = false
     @State private var useAlternateWelcomeImage = false
-    @State private var notificationLocation: NotificationLocationDestination?
     @ObservedObject private var alerts = LocationAlertService.shared
     @EnvironmentObject private var notifications: NotificationCoordinator
+    @EnvironmentObject private var router: AppRouter
 
     var body: some View {
-        VStack(spacing: 0) {
-            GeometryReader { geo in
-                Image(useAlternateWelcomeImage ? "NewWelcomeImage" : "LogoWelcome")
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: geo.size.width, height: geo.size.height)
-                    .clipped()
-            }
-
-            Divider()
-
-            HStack {
-                BottomBarButton(icon: "plus.circle", label: "New") {
-                    showAddNew = true
-                }
-                BottomBarButton(icon: "person.text.rectangle", label: "My") {
-                    showMyEntries = true
-                }
-                BottomBarButton(icon: "globe", label: "All") {
-                    showBrowseAll = true
-                }
-                BottomBarButton(icon: "trophy", label: "Board") {
-                    showLeaderboard = true
-                }
-                BottomBarButton(icon: "bird", label: "Lark") {
-                    showSpotAPlate = true
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(Color(.systemBackground))
+        GeometryReader { geo in
+            Image(useAlternateWelcomeImage ? "NewWelcomeImage" : "LogoWelcome")
+                .resizable()
+                .scaledToFill()
+                .frame(width: geo.size.width, height: geo.size.height)
+                .clipped()
         }
+        .ignoresSafeArea(edges: .bottom)
         .navigationTitle("Welcome, \(user.fullName.components(separatedBy: " ").first ?? user.fullName)")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.visible, for: .navigationBar)
@@ -57,9 +27,10 @@ struct LandingView: View {
                 Button(action: {
                     try? AuthService.shared.signOut()
                 }) {
-                    Image(systemName: "chevron.left")
+                    Image(systemName: "rectangle.portrait.and.arrow.right")
                         .font(.body.weight(.medium))
                 }
+                .accessibilityLabel("Sign out")
             }
             ToolbarItem(placement: .principal) {
                 Button(action: {
@@ -86,30 +57,12 @@ struct LandingView: View {
                 .accessibilityLabel("Nearby")
             }
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { showSettings = true }) {
+                Button(action: { router.go(to: .settings) }) {
                     Image(systemName: "gearshape")
                         .font(.body.weight(.medium))
                 }
                 .accessibilityLabel("Settings")
             }
-        }
-        .navigationDestination(isPresented: $showLeaderboard) {
-            LeaderboardView()
-        }
-        .navigationDestination(isPresented: $showSettings) {
-            SettingsView(user: user)
-        }
-        .navigationDestination(isPresented: $showSpotAPlate) {
-            LarkView()
-        }
-        .navigationDestination(isPresented: $showMyEntries) {
-            MyInsightsView(user: user)
-        }
-        .navigationDestination(isPresented: $showBrowseAll) {
-            BrowseInsightsView()
-        }
-        .sheet(isPresented: $showAddNew) {
-            InsightEntryView()
         }
         .sheet(isPresented: $showPriming) {
             LocationPrimingView(userId: user.id) { }
@@ -117,15 +70,8 @@ struct LandingView: View {
         .sheet(isPresented: $showNearbyStatus) {
             NearbyStatusView()
         }
-        .navigationDestination(item: $notificationLocation) { dest in
-            LocationDetailView(
-                locationId: dest.locationId,
-                locationName: dest.locationName,
-                latitude: dest.latitude,
-                longitude: dest.longitude
-            )
-        }
         .onAppear {
+            router.selectedTab = nil
             alerts.incrementLaunchCount()
             if alerts.shouldShowPriming(for: user.id) {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -140,9 +86,7 @@ struct LandingView: View {
             handlePendingNotification()
         }
     }
-}
 
-extension LandingView {
     private func handlePendingNotification() {
         guard let id = notifications.pendingLocationId,
               let lat = notifications.pendingLatitude,
@@ -151,12 +95,13 @@ extension LandingView {
         let opensMap = notifications.pendingOpensMap
         notifications.clearPending()
 
-        notificationLocation = NotificationLocationDestination(
+        let destination = NotificationLocationDestination(
             locationId: id,
             locationName: name?.isEmpty == false ? name : nil,
             latitude: lat,
             longitude: lng
         )
+        router.path = [.location(destination)]
 
         if opensMap, let url = URL(string: "http://maps.apple.com/?ll=\(lat),\(lng)\(name.map { "&q=\($0.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")" } ?? "")") {
             UIApplication.shared.open(url)
@@ -172,35 +117,6 @@ struct NotificationLocationDestination: Hashable, Identifiable {
     var id: String { locationId }
 }
 
-private struct BottomBarButton: View {
-    let icon: String
-    let label: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 20))
-                Text(label)
-                    .font(.caption2)
-            }
-            .foregroundStyle(.primary)
-            .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.plain)
-    }
-}
-
 #Preview {
-    NavigationStack {
-        LandingView(user: AuthUser(
-            id: "preview",
-            email: "jane@example.com",
-            fullName: "Jane Smith",
-            role: .user,
-            organization: nil,
-            createdAt: Date()
-        ))
-    }
+    SplashRouterView()
 }

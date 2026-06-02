@@ -187,6 +187,7 @@ struct BrowseInsightsView: View {
             }
         }
         .navigationTitle("Browse All")
+        .withHomeToolbar()
         .task { await loadFacilityTypes() }
         .onChange(of: radiusMiles) { _, _ in
             if hasSearched {
@@ -688,6 +689,7 @@ struct LocationDetailView: View {
         }
         .navigationTitle(locationName ?? "Location")
         .navigationBarTitleDisplayMode(.inline)
+        .withHomeToolbar()
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 ShareLink(item: shareSummary, preview: SharePreview(locationName ?? "Location", image: Image(systemName: "mappin.circle"))) {
