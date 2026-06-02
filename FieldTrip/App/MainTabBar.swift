@@ -6,29 +6,17 @@ import SwiftUI
 struct MainTabBar: View {
     @EnvironmentObject private var router: AppRouter
     @State private var draggedIndex: Int?
-    @State private var hasReleasedDrag = true
+
+    private let barHeight: CGFloat = 56
 
     var body: some View {
+        let tabs = MainTab.allCases
+
         GeometryReader { geo in
-            let count = MainTab.allCases.count
-            let cellWidth = geo.size.width / CGFloat(count)
-            let buttons = MainTab.allCases
+            let cellWidth = geo.size.width / CGFloat(tabs.count)
 
-            ZStack(alignment: .topLeading) {
-                HStack(spacing: 0) {
-                    ForEach(Array(buttons.enumerated()), id: \.offset) { idx, tab in
-                        TabButton(
-                            tab: tab,
-                            isSelected: router.selectedTab == tab,
-                            isHovered: draggedIndex == idx
-                        ) {
-                            router.tapTab(tab)
-                        }
-                        .frame(width: cellWidth)
-                    }
-                }
-
-                // Liquid Glass bubble following the user's finger while they drag.
+            ZStack(alignment: .leading) {
+                // Liquid-Glass bubble that follows the finger while dragging.
                 if let i = draggedIndex {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .fill(.thinMaterial)
@@ -37,8 +25,8 @@ struct MainTabBar: View {
                                 .strokeBorder(
                                     LinearGradient(
                                         colors: [
-                                            Color.tabSelected.opacity(0.85),
-                                            Color.tabSelected.opacity(0.45),
+                                            Color.tabSelected.opacity(0.9),
+                                            Color.tabSelected.opacity(0.4),
                                         ],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
@@ -47,34 +35,43 @@ struct MainTabBar: View {
                                 )
                         )
                         .shadow(color: Color.tabSelected.opacity(0.35), radius: 10, x: 0, y: 4)
-                        .frame(width: cellWidth - 6, height: geo.size.height - 10)
-                        .offset(x: CGFloat(i) * cellWidth + 3, y: 5)
+                        .frame(width: cellWidth - 6, height: barHeight - 10)
+                        .offset(x: CGFloat(i) * cellWidth + 3, y: 0)
                         .animation(.spring(response: 0.22, dampingFraction: 0.85), value: draggedIndex)
-                        .allowsHitTesting(false)
+                }
+
+                HStack(spacing: 0) {
+                    ForEach(Array(tabs.enumerated()), id: \.offset) { idx, tab in
+                        TabIconView(
+                            tab: tab,
+                            isSelected: router.selectedTab == tab,
+                            isHovered: draggedIndex == idx
+                        )
+                        .frame(width: cellWidth, height: barHeight)
+                    }
                 }
             }
+            .frame(width: geo.size.width, height: barHeight)
             .contentShape(Rectangle())
             .gesture(
-                DragGesture(minimumDistance: 6)
+                DragGesture(minimumDistance: 0)
                     .onChanged { value in
                         let raw = Int(value.location.x / cellWidth)
-                        let clamped = min(max(raw, 0), count - 1)
+                        let clamped = min(max(raw, 0), tabs.count - 1)
                         if draggedIndex != clamped {
                             draggedIndex = clamped
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         }
-                        hasReleasedDrag = false
                     }
                     .onEnded { _ in
                         if let i = draggedIndex {
-                            router.tapTab(buttons[i])
+                            router.tapTab(tabs[i])
                         }
                         draggedIndex = nil
-                        hasReleasedDrag = true
                     }
             )
         }
-        .frame(height: 64)
+        .frame(height: barHeight)
         .background(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .fill(.thinMaterial)
@@ -100,26 +97,24 @@ struct MainTabBar: View {
     }
 }
 
-private struct TabButton: View {
+/// Static visual cell — not a Button, so the parent DragGesture handles
+/// both taps and drags without being intercepted.
+private struct TabIconView: View {
     let tab: MainTab
     let isSelected: Bool
     let isHovered: Bool
-    let action: () -> Void
+
+    private var highlighted: Bool { isSelected || isHovered }
 
     var body: some View {
-        Button(action: action) {
-            VStack(spacing: 2) {
-                Image(systemName: tab.icon)
-                    .font(.system(size: 20, weight: (isSelected || isHovered) ? .semibold : .regular))
-                Text(tab.label)
-                    .font(.caption2)
-                    .fontWeight((isSelected || isHovered) ? .semibold : .regular)
-            }
-            .foregroundStyle((isSelected || isHovered) ? Color.tabSelected : Color.primary)
-            .frame(maxWidth: .infinity, minHeight: 44)
-            .contentShape(Rectangle())
+        VStack(spacing: 2) {
+            Image(systemName: tab.icon)
+                .font(.system(size: 20, weight: highlighted ? .semibold : .regular))
+            Text(tab.label)
+                .font(.caption2)
+                .fontWeight(highlighted ? .semibold : .regular)
         }
-        .buttonStyle(.plain)
+        .foregroundStyle(highlighted ? Color.tabSelected : Color.primary)
         .accessibilityLabel(tab.label)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
