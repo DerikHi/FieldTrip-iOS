@@ -3,6 +3,7 @@ import Combine
 
 /// Type-safe destinations that the app's NavigationStack knows how to render.
 enum Route: Hashable {
+    case newEntry
     case myEntries
     case browseAll
     case leaderboard
@@ -45,7 +46,6 @@ enum MainTab: String, CaseIterable, Identifiable {
 @MainActor
 final class AppRouter: ObservableObject {
     @Published var path: [Route] = []
-    @Published var showAddNew: Bool = false
     @Published var selectedTab: MainTab? = nil
 
     func goHome() {
@@ -61,7 +61,7 @@ final class AppRouter: ObservableObject {
     func tapTab(_ tab: MainTab) {
         switch tab {
         case .new:
-            showAddNew = true
+            go(to: .newEntry, tab: .new)
         case .my:
             go(to: .myEntries, tab: .my)
         case .all:

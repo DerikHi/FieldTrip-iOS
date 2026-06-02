@@ -16,15 +16,14 @@ struct MainShell: View {
         .safeAreaInset(edge: .bottom, spacing: 0) {
             MainTabBar()
         }
-        .sheet(isPresented: $router.showAddNew) {
-            InsightEntryView()
-        }
         .environmentObject(router)
     }
 
     @ViewBuilder
     private func destinationView(for route: Route) -> some View {
         switch route {
+        case .newEntry:
+            InsightEntryView()
         case .myEntries:
             MyInsightsView(user: user)
         case .browseAll:

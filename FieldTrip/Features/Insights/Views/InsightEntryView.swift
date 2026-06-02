@@ -4,91 +4,85 @@ import PhotosUI
 
 struct InsightEntryView: View {
     @StateObject private var vm = InsightEntryViewModel()
-    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var router: AppRouter
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // Step indicator
-                StepIndicatorView(currentStep: vm.currentStep.rawValue, totalSteps: InsightEntryViewModel.Step.allCases.count)
-                    .padding(.horizontal)
-                    .padding(.vertical, 12)
-
-                Divider()
-
-                // Offline banner
-                if vm.isOffline {
-                    HStack(spacing: 8) {
-                        Image(systemName: "wifi.slash")
-                        Text("Offline — insight will sync when connected")
-                            .font(.caption)
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: .infinity)
-                    .background(Color.orange)
-                }
-
-                // Step content
-                TabView(selection: $vm.currentStep) {
-                    LocationStepView(vm: vm).tag(InsightEntryViewModel.Step.location)
-                    RatingsStepView(vm: vm).tag(InsightEntryViewModel.Step.ratings)
-                    CommentStepView(vm: vm).tag(InsightEntryViewModel.Step.comment)
-                    PhotoStepView(vm: vm).tag(InsightEntryViewModel.Step.photos)
-                    ReviewStepView(vm: vm).tag(InsightEntryViewModel.Step.review)
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .animation(.easeInOut, value: vm.currentStep)
-
-                Divider()
-
-                // Navigation buttons
-                HStack(spacing: 16) {
-                    if vm.currentStep != .location {
-                        Button("Back") { vm.goBack() }
-                            .frame(minHeight: 44)
-                            .buttonStyle(.bordered)
-                    }
-
-                    Spacer()
-
-                    if vm.currentStep == .review {
-                        Button(action: { Task { await vm.submit() } }) {
-                            Group {
-                                if vm.isLoading {
-                                    ProgressView().progressViewStyle(.circular).tint(.white)
-                                } else {
-                                    Text(vm.isOffline ? "Save Offline" : "Submit")
-                                        .fontWeight(.semibold)
-                                }
-                            }
-                            .frame(minWidth: 120, minHeight: 44)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(vm.isLoading)
-                    } else {
-                        Button("Next") { vm.advance() }
-                            .frame(minHeight: 44)
-                            .buttonStyle(.borderedProminent)
-                            .disabled(!vm.canAdvance)
-                    }
-                }
-                .padding(.horizontal, 24)
+        VStack(spacing: 0) {
+            // Step indicator
+            StepIndicatorView(currentStep: vm.currentStep.rawValue, totalSteps: InsightEntryViewModel.Step.allCases.count)
+                .padding(.horizontal)
                 .padding(.vertical, 12)
+
+            Divider()
+
+            // Offline banner
+            if vm.isOffline {
+                HStack(spacing: 8) {
+                    Image(systemName: "wifi.slash")
+                    Text("Offline — insight will sync when connected")
+                        .font(.caption)
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity)
+                .background(Color.orange)
             }
-            .navigationTitle(vm.currentStep.title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+
+            // Step content
+            TabView(selection: $vm.currentStep) {
+                LocationStepView(vm: vm).tag(InsightEntryViewModel.Step.location)
+                RatingsStepView(vm: vm).tag(InsightEntryViewModel.Step.ratings)
+                CommentStepView(vm: vm).tag(InsightEntryViewModel.Step.comment)
+                PhotoStepView(vm: vm).tag(InsightEntryViewModel.Step.photos)
+                ReviewStepView(vm: vm).tag(InsightEntryViewModel.Step.review)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .animation(.easeInOut, value: vm.currentStep)
+
+            Divider()
+
+            // Navigation buttons
+            HStack(spacing: 16) {
+                if vm.currentStep != .location {
+                    Button("Back") { vm.goBack() }
+                        .frame(minHeight: 44)
+                        .buttonStyle(.bordered)
+                }
+
+                Spacer()
+
+                if vm.currentStep == .review {
+                    Button(action: { Task { await vm.submit() } }) {
+                        Group {
+                            if vm.isLoading {
+                                ProgressView().progressViewStyle(.circular).tint(.white)
+                            } else {
+                                Text(vm.isOffline ? "Save Offline" : "Submit")
+                                    .fontWeight(.semibold)
+                            }
+                        }
+                        .frame(minWidth: 120, minHeight: 44)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(vm.isLoading)
+                } else {
+                    Button("Next") { vm.advance() }
+                        .frame(minHeight: 44)
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!vm.canAdvance)
                 }
             }
-            .alert("Success!", isPresented: $vm.isSuccess) {
-                Button("Done") { dismiss() }
-            } message: {
-                Text(vm.isOffline ? "Saved offline. Will sync when you're back online." : "Your insight has been shared.")
-            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 12)
+        }
+        .navigationTitle(vm.currentStep.title)
+        .navigationBarTitleDisplayMode(.inline)
+        .withHomeToolbar()
+        .alert("Success!", isPresented: $vm.isSuccess) {
+            Button("Done") { router.goHome() }
+        } message: {
+            Text(vm.isOffline ? "Saved offline. Will sync when you're back online." : "Your insight has been shared.")
         }
     }
 }
