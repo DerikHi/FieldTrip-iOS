@@ -5,6 +5,11 @@ import LocalAuthentication
 enum BiometricService {
     private static let enabledKey = "biometric_login_enabled"
 
+    /// Credentials the user just signed in with, held in memory only so
+    /// the splash router can offer to enable biometrics before navigating
+    /// to the home shell. Cleared as soon as the prompt is resolved.
+    static var pendingCredentials: (email: String, password: String)?
+
     enum BiometryKind {
         case faceID
         case touchID

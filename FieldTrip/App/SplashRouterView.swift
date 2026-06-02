@@ -4,6 +4,7 @@ import FirebaseAuth
 struct SplashRouterView: View {
     @State private var authState: AuthState = .loading
     @State private var currentUser: AuthUser?
+    @State private var pendingBiometricUser: AuthUser?
 
     enum AuthState {
         case loading
@@ -24,10 +25,42 @@ struct SplashRouterView: View {
                 LoginView()
 
             case .authenticated(let user):
-                MainShell(user: user)
+                if pendingBiometricUser != nil {
+                    // Stay on a neutral background while the alert is up so the
+                    // user sees the prompt without the home shell flashing first.
+                    Color(.systemBackground)
+                        .ignoresSafeArea()
+                        .alert(
+                            "Enable \(BiometricService.availableBiometry.displayName)?",
+                            isPresented: Binding(
+                                get: { pendingBiometricUser != nil },
+                                set: { if !$0 { pendingBiometricUser = nil } }
+                            )
+                        ) {
+                            Button("Enable") { enableBiometricAndProceed() }
+                            Button("Not Now", role: .cancel) { skipBiometricAndProceed() }
+                        } message: {
+                            Text("Use \(BiometricService.availableBiometry.displayName) to sign in faster next time.")
+                        }
+                } else {
+                    MainShell(user: user)
+                }
             }
         }
         .onAppear { checkAuthState() }
+    }
+
+    private func enableBiometricAndProceed() {
+        if let creds = BiometricService.pendingCredentials {
+            BiometricService.enable(email: creds.email, password: creds.password)
+        }
+        BiometricService.pendingCredentials = nil
+        pendingBiometricUser = nil
+    }
+
+    private func skipBiometricAndProceed() {
+        BiometricService.pendingCredentials = nil
+        pendingBiometricUser = nil
     }
 
     private func checkAuthState() {
@@ -63,6 +96,11 @@ struct SplashRouterView: View {
 
                     if http.statusCode == 200 {
                         let user = try JSONDecoder.apiDecoder.decode(APIResponse<AuthUser>.self, from: data).data
+                        if BiometricService.pendingCredentials != nil
+                            && BiometricService.availableBiometry != .none
+                            && !BiometricService.isEnabled {
+                            pendingBiometricUser = user
+                        }
                         authState = .authenticated(user)
                     } else if http.statusCode == 404 {
                         guard let regURL = URL(string: "\(apiBaseURL)/api/auth/register") else {
@@ -81,6 +119,11 @@ struct SplashRouterView: View {
                         regRequest.httpBody = try JSONEncoder().encode(body)
                         let (regData, _) = try await URLSession.shared.data(for: regRequest)
                         let user = try JSONDecoder.apiDecoder.decode(APIResponse<AuthUser>.self, from: regData).data
+                        if BiometricService.pendingCredentials != nil
+                            && BiometricService.availableBiometry != .none
+                            && !BiometricService.isEnabled {
+                            pendingBiometricUser = user
+                        }
                         authState = .authenticated(user)
                     } else {
                         authState = .unauthenticated

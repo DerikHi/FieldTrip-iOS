@@ -12,7 +12,6 @@ final class LoginViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var navigateToHome = false
     @Published var authenticatedUser: AuthUser?
-    @Published var showEnableBiometricPrompt = false
 
     private let authService: AuthServiceProtocol
     private let haptics = UINotificationFeedbackGenerator()
@@ -46,29 +45,24 @@ final class LoginViewModel: ObservableObject {
             UserDefaults.standard.removeObject(forKey: "remembered_email")
         }
 
+        let normalizedEmail = email.lowercased().trimmingCharacters(in: .whitespaces)
+
+        // Stash credentials before signing in so SplashRouterView can offer
+        // to enable biometrics after authentication completes but before
+        // navigation to the home shell.
+        if BiometricService.availableBiometry != .none && !BiometricService.isEnabled {
+            BiometricService.pendingCredentials = (email: normalizedEmail, password: password)
+        }
+
         do {
-            let user = try await authService.signIn(email: email.lowercased().trimmingCharacters(in: .whitespaces), password: password)
+            let user = try await authService.signIn(email: normalizedEmail, password: password)
             authenticatedUser = user
-            if BiometricService.availableBiometry != .none && !BiometricService.isEnabled {
-                showEnableBiometricPrompt = true
-            } else {
-                navigateToHome = true
-            }
+            navigateToHome = true
         } catch {
+            BiometricService.pendingCredentials = nil
             haptics.notificationOccurred(.error)
             errorMessage = error.localizedDescription
         }
-    }
-
-    func enableBiometricAndContinue() {
-        BiometricService.enable(email: email.lowercased().trimmingCharacters(in: .whitespaces), password: password)
-        showEnableBiometricPrompt = false
-        navigateToHome = true
-    }
-
-    func skipBiometricAndContinue() {
-        showEnableBiometricPrompt = false
-        navigateToHome = true
     }
 
     func signInWithBiometrics() async {

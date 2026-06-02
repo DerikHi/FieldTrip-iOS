@@ -172,12 +172,6 @@ struct LoginView: View {
             .sheet(isPresented: $showRegistration) {
                 RegistrationView()
             }
-            .alert("Enable \(BiometricService.availableBiometry.displayName)?", isPresented: $vm.showEnableBiometricPrompt) {
-                Button("Enable") { vm.enableBiometricAndContinue() }
-                Button("Not Now", role: .cancel) { vm.skipBiometricAndContinue() }
-            } message: {
-                Text("Use \(BiometricService.availableBiometry.displayName) to sign in faster next time.")
-            }
         }
     }
 }
