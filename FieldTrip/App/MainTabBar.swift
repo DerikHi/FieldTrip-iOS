@@ -19,14 +19,14 @@ struct MainTabBar: View {
                 // Liquid-Glass bubble that follows the finger while dragging.
                 if let i = draggedIndex {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(.thinMaterial)
+                        .fill(.ultraThinMaterial)
                         .overlay(
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
                                 .strokeBorder(
                                     LinearGradient(
                                         colors: [
-                                            Color.tabSelected.opacity(0.9),
-                                            Color.tabSelected.opacity(0.4),
+                                            Color.tabSelected.opacity(0.85),
+                                            Color.tabSelected.opacity(0.35),
                                         ],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
@@ -74,26 +74,13 @@ struct MainTabBar: View {
         .frame(height: barHeight)
         .background(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(.thinMaterial)
+                .fill(Color.black.opacity(0.30))
                 .overlay(
                     RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.55),
-                                    Color.white.opacity(0.05),
-                                    Color.black.opacity(0.05),
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 0.8
-                        )
+                        .strokeBorder(Color.white.opacity(0.18), lineWidth: 0.8)
                 )
-                .shadow(color: .black.opacity(0.18), radius: 14, x: 0, y: 6)
         )
         .padding(.horizontal, 12)
-        .padding(.bottom, 4)
     }
 }
 
@@ -110,11 +97,14 @@ private struct TabIconView: View {
         VStack(spacing: 2) {
             Image(systemName: tab.icon)
                 .font(.system(size: 20, weight: highlighted ? .semibold : .regular))
+                .scaleEffect(isHovered ? 1.55 : (isSelected ? 1.1 : 1.0))
+                .animation(.spring(response: 0.22, dampingFraction: 0.7), value: isHovered)
+                .animation(.easeOut(duration: 0.2), value: isSelected)
             Text(tab.label)
                 .font(.caption2)
                 .fontWeight(highlighted ? .semibold : .regular)
         }
-        .foregroundStyle(highlighted ? Color.tabSelected : Color.primary)
+        .foregroundStyle(highlighted ? Color.tabSelected : Color.white)
         .accessibilityLabel(tab.label)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
