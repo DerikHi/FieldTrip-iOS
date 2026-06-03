@@ -1,22 +1,25 @@
 import SwiftUI
 import Combine
 
-/// Type-safe destinations that the app's NavigationStack knows how to render.
-enum Route: Hashable {
-    case newEntry
-    case myEntries
-    case browseAll
-    case leaderboard
-    case lark
-    case settings
-    case location(NotificationLocationDestination)
+/// Type passed via NotificationCoordinator / URL deep links.
+struct NotificationLocationDestination: Hashable, Identifiable {
+    let locationId: String
+    let locationName: String?
+    let latitude: Double
+    let longitude: Double
+    var id: String { locationId }
 }
 
-/// Tabs shown in the persistent bottom bar.
-enum MainTab: String, CaseIterable, Identifiable {
-    case new
+extension Color {
+    /// The green tint used for the active tab and other accents.
+    static let tabSelected = Color(red: 0.13, green: 0.66, blue: 0.27)
+}
+
+/// Top-level tabs shown in the standard SwiftUI TabView at the bottom of every screen.
+enum MainTab: String, CaseIterable, Identifiable, Hashable {
     case my
     case all
+    case new
     case board
     case lark
 
@@ -24,9 +27,9 @@ enum MainTab: String, CaseIterable, Identifiable {
 
     var icon: String {
         switch self {
-        case .new: return "plus.circle"
         case .my: return "person.text.rectangle"
         case .all: return "globe"
+        case .new: return "plus.circle.fill"
         case .board: return "trophy"
         case .lark: return "bird"
         }
@@ -34,42 +37,39 @@ enum MainTab: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .new: return "New"
         case .my: return "My"
         case .all: return "All"
+        case .new: return "New"
         case .board: return "Board"
         case .lark: return "Lark"
         }
     }
 }
 
+/// Wrapper destinations that can be pushed within each tab's NavigationStack.
+struct LocationRoute: Hashable {
+    let destination: NotificationLocationDestination
+}
+
 @MainActor
 final class AppRouter: ObservableObject {
-    @Published var path: [Route] = []
-    @Published var selectedTab: MainTab? = nil
+    /// Active bottom tab. The Welcome screen is presented as a separate sheet
+    /// triggered by the Home icon in each tab's navigation bar.
+    @Published var selectedTab: MainTab = .all
 
-    func goHome() {
-        path.removeAll()
-        selectedTab = nil
-    }
+    /// Whether the Welcome screen sheet is currently presented.
+    @Published var showWelcome: Bool = true
 
-    func go(to route: Route, tab: MainTab? = nil) {
-        path = [route]
-        selectedTab = tab
-    }
+    /// Each tab carries its own NavigationStack path so back-swipe works
+    /// independently per tab.
+    @Published var myPath: [LocationRoute] = []
+    @Published var allPath: [LocationRoute] = []
+    @Published var boardPath: [LocationRoute] = []
+    @Published var larkPath: [LocationRoute] = []
 
-    func tapTab(_ tab: MainTab) {
-        switch tab {
-        case .new:
-            go(to: .newEntry, tab: .new)
-        case .my:
-            go(to: .myEntries, tab: .my)
-        case .all:
-            go(to: .browseAll, tab: .all)
-        case .board:
-            go(to: .leaderboard, tab: .board)
-        case .lark:
-            go(to: .lark, tab: .lark)
-        }
+    /// Open a specific location detail. Routes through the All tab.
+    func openLocation(_ destination: NotificationLocationDestination) {
+        selectedTab = .all
+        allPath = [LocationRoute(destination: destination)]
     }
 }

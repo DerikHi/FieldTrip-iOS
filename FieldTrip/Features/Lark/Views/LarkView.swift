@@ -33,6 +33,5 @@ struct LarkView: View {
         }
         .navigationTitle("For A Lark")
         .navigationBarTitleDisplayMode(.inline)
-        .withHomeToolbar()
     }
 }

@@ -132,7 +132,6 @@ struct MyInsightsView: View {
             }
         }
         .navigationTitle("My Entries")
-        .withHomeToolbar()
         .task { await loadEntries() }
         .sheet(isPresented: $showFilterSheet) {
             NavigationStack {

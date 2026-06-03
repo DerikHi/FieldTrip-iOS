@@ -77,8 +77,12 @@ enum KeychainService {
         return status == errSecSuccess || status == errSecItemNotFound
     }
 
+    /// Clears the current sign-in session. Preserves biometric-login
+    /// credentials so the user can use Face ID / Touch ID on the next sign-in
+    /// without re-enabling.
     static func clearAll() {
-        Key.allCases.forEach { delete(for: $0) }
+        let sessionKeys: [Key] = [.authToken, .refreshToken, .userId]
+        sessionKeys.forEach { delete(for: $0) }
     }
 }
 

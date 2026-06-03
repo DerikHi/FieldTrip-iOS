@@ -20,6 +20,12 @@ struct SettingsView: View {
                 }
                 .buttonStyle(.borderedProminent)
 
+                Button(action: { try? AuthService.shared.signOut() }) {
+                    Label("Logout", systemImage: "rectangle.portrait.and.arrow.right")
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                }
+                .buttonStyle(.bordered)
+
                 DisclosureGroup {
                     PrivacyPolicyContent()
                         .padding(.top, 8)
@@ -78,7 +84,6 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
-        .withHomeToolbar()
         .sheet(isPresented: $showAdminPhotoSelector) {
             AdminPhotoSelectorView()
         }

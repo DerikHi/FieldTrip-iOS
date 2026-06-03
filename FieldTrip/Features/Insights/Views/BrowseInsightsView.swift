@@ -187,7 +187,6 @@ struct BrowseInsightsView: View {
             }
         }
         .navigationTitle("Browse All")
-        .withHomeToolbar()
         .task { await loadFacilityTypes() }
         .onChange(of: radiusMiles) { _, _ in
             if hasSearched {

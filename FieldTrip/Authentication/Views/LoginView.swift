@@ -4,6 +4,7 @@ struct LoginView: View {
     @StateObject private var vm = LoginViewModel()
     @State private var showForgotPassword = false
     @State private var showRegistration = false
+    @State private var didAttemptBiometrics = false
 
     var body: some View {
         NavigationStack {
@@ -171,6 +172,21 @@ struct LoginView: View {
             }
             .sheet(isPresented: $showRegistration) {
                 RegistrationView()
+            }
+            .onAppear {
+                // Auto-trigger biometric sign-in the first time the Login screen
+                // appears, if the user has previously enabled it. Wrapped in a Task
+                // with a brief delay so the system prompt fires after the window
+                // is fully active (LAContext.evaluatePolicy is unreliable mid-launch).
+                // Only attempt once per appearance so a cancel doesn't loop.
+                guard !didAttemptBiometrics else { return }
+                didAttemptBiometrics = true
+                guard BiometricService.availableBiometry != .none,
+                      BiometricService.isEnabled else { return }
+                Task {
+                    try? await Task.sleep(nanoseconds: 350_000_000) // 0.35s
+                    await vm.signInWithBiometrics()
+                }
             }
         }
     }

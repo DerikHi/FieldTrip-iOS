@@ -110,7 +110,6 @@ struct LeaderboardView: View {
             }
         }
         .navigationTitle("Leaderboard")
-        .withHomeToolbar()
         .task { await loadLeaderboard() }
     }
 

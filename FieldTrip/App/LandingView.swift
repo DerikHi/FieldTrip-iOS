@@ -1,15 +1,17 @@
 import SwiftUI
 
+/// The Welcome screen — presented as a sheet from the Home toolbar button
+/// (and automatically when the user first signs in). Shows the brand image
+/// plus Logout, Nearby, Settings, and the swap-image test toggle.
 struct LandingView: View {
     let user: AuthUser
-    @State private var showPriming = false
+    @State private var showSettings = false
     @State private var showNearbyStatus = false
     @State private var useAlternateWelcomeImage = false
     @ObservedObject private var alerts = LocationAlertService.shared
-    @EnvironmentObject private var notifications: NotificationCoordinator
-    @EnvironmentObject private var router: AppRouter
 
     var body: some View {
+      NavigationStack {
         GeometryReader { geo in
             Image(useAlternateWelcomeImage ? "NewWelcomeImage" : "LogoWelcome")
                 .resizable()
@@ -61,66 +63,21 @@ struct LandingView: View {
                 .accessibilityLabel("Nearby")
             }
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { router.go(to: .settings) }) {
+                Button(action: { showSettings = true }) {
                     Image(systemName: "gearshape")
                         .font(.body.weight(.medium))
                 }
                 .accessibilityLabel("Settings")
             }
         }
-        .sheet(isPresented: $showPriming) {
-            LocationPrimingView(userId: user.id) { }
+        .sheet(isPresented: $showSettings) {
+            NavigationStack {
+                SettingsView(user: user)
+            }
         }
         .sheet(isPresented: $showNearbyStatus) {
             NearbyStatusView()
         }
-        .onAppear {
-            router.selectedTab = nil
-            alerts.incrementLaunchCount()
-            if alerts.shouldShowPriming(for: user.id) {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    showPriming = true
-                }
-            } else {
-                alerts.startIfPossible()
-            }
-            handlePendingNotification()
-        }
-        .onChange(of: notifications.pendingLocationId) { _, _ in
-            handlePendingNotification()
-        }
+      }
     }
-
-    private func handlePendingNotification() {
-        guard let id = notifications.pendingLocationId,
-              let lat = notifications.pendingLatitude,
-              let lng = notifications.pendingLongitude else { return }
-        let name = notifications.pendingLocationName
-        let opensMap = notifications.pendingOpensMap
-        notifications.clearPending()
-
-        let destination = NotificationLocationDestination(
-            locationId: id,
-            locationName: name?.isEmpty == false ? name : nil,
-            latitude: lat,
-            longitude: lng
-        )
-        router.path = [.location(destination)]
-
-        if opensMap, let url = URL(string: "http://maps.apple.com/?ll=\(lat),\(lng)\(name.map { "&q=\($0.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")" } ?? "")") {
-            UIApplication.shared.open(url)
-        }
-    }
-}
-
-struct NotificationLocationDestination: Hashable, Identifiable {
-    let locationId: String
-    let locationName: String?
-    let latitude: Double
-    let longitude: Double
-    var id: String { locationId }
-}
-
-#Preview {
-    SplashRouterView()
 }

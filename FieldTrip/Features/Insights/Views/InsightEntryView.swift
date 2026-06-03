@@ -78,9 +78,11 @@ struct InsightEntryView: View {
         }
         .navigationTitle(vm.currentStep.title)
         .navigationBarTitleDisplayMode(.inline)
-        .withHomeToolbar()
         .alert("Success!", isPresented: $vm.isSuccess) {
-            Button("Done") { router.goHome() }
+            Button("Done") {
+                router.selectedTab = .my
+                router.myPath.removeAll()
+            }
         } message: {
             Text(vm.isOffline ? "Saved offline. Will sync when you're back online." : "Your insight has been shared.")
         }
