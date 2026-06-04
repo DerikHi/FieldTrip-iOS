@@ -246,12 +246,15 @@ struct LocationStepView: View {
     }
 
     private func runPlaceSearch() async {
-        let name = placeSearchName.trimmingCharacters(in: .whitespaces)
+        let name = placeSearchName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let town = placeSearchTown.trimmingCharacters(in: .whitespacesAndNewlines)
+        placeSearchName = name
+        placeSearchTown = town
         guard !name.isEmpty else { return }
         isSearchingPlace = true
         placeSearchPerformed = true
         defer { isSearchingPlace = false }
-        placeSearchResults = await PlaceSearchService.search(name: name, town: placeSearchTown)
+        placeSearchResults = await PlaceSearchService.search(name: name, town: town)
     }
 
     private func selectPlace(_ result: PlaceSearchResult) {

@@ -52,6 +52,12 @@ final class AuthService: AuthServiceProtocol {
 
     var currentFirebaseUser: User? { Auth.auth().currentUser }
 
+    /// The signed-in user's display name (the full name set during
+    /// registration), or nil if no one is signed in or no name is stored.
+    var currentUserDisplayName: String? {
+        Auth.auth().currentUser?.displayName
+    }
+
     // MARK: - Sign In
 
     func signIn(email: String, password: String) async throws -> AuthUser {

@@ -84,6 +84,13 @@ enum KeychainService {
         let sessionKeys: [Key] = [.authToken, .refreshToken, .userId]
         sessionKeys.forEach { delete(for: $0) }
     }
+
+    /// Removes every keychain item this app owns, including the saved
+    /// biometric credentials. Use on account deletion so no trace of the
+    /// user remains on device.
+    static func wipeEverything() {
+        Key.allCases.forEach { delete(for: $0) }
+    }
 }
 
 extension KeychainService.Key: CaseIterable {}

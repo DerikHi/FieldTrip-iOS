@@ -114,7 +114,7 @@ struct SettingsView: View {
             Button("Delete Account", role: .destructive) { Task { await deleteAccount() } }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This permanently removes your login. Place ratings and photos you added remain anonymously for the community.")
+            Text("This permanently deletes your account, your User Name, your email address, and every rating, comment, and photo you have added. Nothing can be recovered.")
         }
     }
 
@@ -169,6 +169,7 @@ struct SettingsView: View {
         do {
             let (_, response) = try await URLSession.shared.data(for: request)
             if let http = response as? HTTPURLResponse, http.statusCode == 200 {
+                wipeLocalUserData()
                 try? AuthService.shared.signOut()
             } else {
                 setStatus("Could not delete account. Please try again later.", isError: true)
@@ -176,6 +177,25 @@ struct SettingsView: View {
         } catch {
             setStatus("Could not delete account. Please try again later.", isError: true)
         }
+    }
+
+    /// Removes every trace of the user from this device after the backend
+    /// confirms the account has been deleted. Wipes all keychain items
+    /// (including saved biometric credentials) and every UserDefaults key
+    /// the app writes.
+    private func wipeLocalUserData() {
+        KeychainService.wipeEverything()
+        let defaults = UserDefaults.standard
+        let keysToClear = [
+            "biometric_login_enabled",
+            "remembered_email",
+            "offline_insight_queue",
+            "locationPrimingChoice",
+            "locationPrimingUserId",
+            "locationLaunchCount",
+            "locationAlertCooldowns",
+        ]
+        keysToClear.forEach { defaults.removeObject(forKey: $0) }
     }
 
     private func setStatus(_ message: String, isError: Bool) {
@@ -234,7 +254,7 @@ private struct PrivacyPolicyContent: View {
             section(
                 title: "Data Retention",
                 isHeading: false,
-                body: "Your data (User Name, email address) and place ratings are stored in the app and related third-party services only for the time that you are a user. If you should delete your account, only the place ratings and images you have provided will persist for the use of the Field Trip Pro community."
+                body: "Your data (User Name, email address), ratings, comments, and photos are stored in databases outside of the app and used by the app only while you have a user account. Should you decide to delete your account via the Delete Account button on the Settings menu, all content you have added to the app, your User Name, and your email address will be deleted."
             )
             section(
                 title: "Your Rights",

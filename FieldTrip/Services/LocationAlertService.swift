@@ -129,6 +129,26 @@ final class LocationAlertService: NSObject, ObservableObject {
         UserDefaults.standard.set(userId, forKey: primingUserIdKey)
     }
 
+    /// User explicitly opted in to nearby alerts from inside the app
+    /// (i.e. without going through the priming sheet, typically because
+    /// they had already granted iOS location permission for another
+    /// feature). Records the choice, requests the iOS prompt if needed,
+    /// and starts monitoring when possible.
+    func enableNearbyAlerts() {
+        let userId = primingUserId ?? ""
+        UserDefaults.standard.set(PrimingChoice.yes.rawValue, forKey: primingChoiceKey)
+        UserDefaults.standard.set(userId, forKey: primingUserIdKey)
+
+        switch authorizationStatus {
+        case .notDetermined:
+            manager.requestWhenInUseAuthorization()
+        case .authorizedWhenInUse, .authorizedAlways:
+            startIfPossible()
+        default:
+            break
+        }
+    }
+
     // MARK: - Nearby fetch
 
     private func refreshNearby(at location: CLLocation) async {

@@ -492,25 +492,15 @@ struct MyEntryDetailView: View {
     }
 
     private var shareSummary: String {
-        var lines: [String] = []
-        lines.append(entry.locationName ?? "Unnamed Location")
-        lines.append(entry.location.facilityType.name)
-        if let star = entry.starRating {
-            let stars = String(repeating: "\u{2605}", count: star) + String(repeating: "\u{2606}", count: 5 - star)
-            lines.append(stars)
-        }
-        if let comment = entry.comment, !comment.isEmpty {
-            lines.append(comment)
-        }
-        lines.append("")
-        lines.append("Shared from FieldTrip")
+        let userName = AuthService.shared.currentUserDisplayName ?? "A FieldTrip Pro user"
+        var lines = ["\(userName) has shared a location with you from Field Trip Pro"]
         if let url = NotificationCoordinator.deepLinkURL(
             id: entry.locationId,
             name: entry.locationName,
             lat: entry.location.latitude,
             lng: entry.location.longitude
         ) {
-            lines.append("Open in app: \(url.absoluteString)")
+            lines.append(url.absoluteString)
         }
         return lines.joined(separator: "\n")
     }

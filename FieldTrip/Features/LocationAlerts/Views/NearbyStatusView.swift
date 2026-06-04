@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreLocation
 
 struct NearbyStatusView: View {
     @Environment(\.dismiss) private var dismiss
@@ -33,11 +34,11 @@ struct NearbyStatusView: View {
             .opacity(appear ? 1 : 0)
             .offset(y: appear ? 0 : 6)
 
-            if showsOpenSettingsButton {
+            if let action = primaryAction {
                 Button {
-                    openSettings()
+                    action.run()
                 } label: {
-                    Text("Open Settings")
+                    Text(action.label)
                         .fontWeight(.semibold)
                         .frame(maxWidth: .infinity, minHeight: 50)
                 }
@@ -48,7 +49,7 @@ struct NearbyStatusView: View {
             Button {
                 dismiss()
             } label: {
-                Text(showsOpenSettingsButton ? "Not Now" : "Got it")
+                Text(primaryAction == nil ? "Got it" : "Not Now")
                     .fontWeight(.medium)
                     .frame(maxWidth: .infinity, minHeight: 44)
             }
@@ -77,61 +78,85 @@ struct NearbyStatusView: View {
         }
     }
 
+    /// Resolves the current state by treating iOS Settings as the source of
+    /// truth for permission, and the in-app priming choice as a separate
+    /// opt-in for background nearby alerts. This avoids the bug where the
+    /// app told the user to open Settings even though Settings was already
+    /// set correctly (because they granted permission via the GPS button
+    /// in another screen without ever seeing the priming sheet).
     private var status: Status {
-        if alerts.locationPermissionGranted && alerts.primingChoice == .yes {
-            return .enabled
+        switch alerts.authorizationStatus {
+        case .denied, .restricted:
+            return .systemDenied
+        case .authorizedWhenInUse, .authorizedAlways:
+            return alerts.primingChoice == .yes ? .enabled : .needsInAppOptIn
+        case .notDetermined:
+            return .needsInAppOptIn
+        @unknown default:
+            return .needsInAppOptIn
         }
-        if alerts.primingChoice == .maybeLater {
-            return .needsEnabling(reason: "You can enable Nearby Alerts now.")
-        }
-        if alerts.primingChoice == .no {
-            return .needsEnabling(reason: "You can enable Nearby Alerts now.")
-        }
-        return .needsEnabling(reason: "Enable Nearby Alerts to be notified as you approach rated locations.")
     }
 
     private enum Status {
         case enabled
-        case needsEnabling(reason: String)
+        case needsInAppOptIn
+        case systemDenied
     }
 
     private var statusTitle: String {
         switch status {
         case .enabled: return "Nearby Alerts are On"
-        case .needsEnabling: return "Enable Nearby Alerts"
+        case .needsInAppOptIn: return "Turn On Nearby Alerts"
+        case .systemDenied: return "Location Access is Off"
         }
     }
 
     private var statusMessage: String {
         switch status {
         case .enabled:
-            if alerts.primingChoice == .yes && !alerts.locationPermissionGranted {
-                return "Open Settings → FieldTrip → Location and choose 'While Using the App'. When done, you'll see notifications as you approach rated locations."
-            }
             return "You'll be notified as you approach places rated in FTP."
-        case .needsEnabling(let reason):
-            return "\(reason)\n\nOpen Settings → FieldTrip → Location and choose 'While Using the App'. When done, we'll send you a notification when you are near a place rated in FTP."
+        case .needsInAppOptIn:
+            return "Get a notification when you're near a place rated in FTP."
+        case .systemDenied:
+            return "FieldTrip Pro doesn't have permission to use your location. Open Settings → FieldTrip Pro → Location and choose 'While Using the App'."
         }
     }
 
     private var statusIcon: String {
         switch status {
         case .enabled: return "checkmark.circle.fill"
-        case .needsEnabling: return "location.circle"
+        case .needsInAppOptIn: return "location.circle"
+        case .systemDenied: return "location.slash.circle"
         }
     }
 
     private var statusColor: Color {
         switch status {
         case .enabled: return .green
-        case .needsEnabling: return .accentColor
+        case .needsInAppOptIn: return .accentColor
+        case .systemDenied: return .orange
         }
     }
 
-    private var showsOpenSettingsButton: Bool {
+    private struct PrimaryAction {
+        let label: String
+        let run: () -> Void
+    }
+
+    private var primaryAction: PrimaryAction? {
         switch status {
-        case .enabled: return !alerts.locationPermissionGranted
-        case .needsEnabling: return true
+        case .enabled:
+            return nil
+        case .needsInAppOptIn:
+            return PrimaryAction(label: "Turn On Nearby Alerts") {
+                Task {
+                    alerts.enableNearbyAlerts()
+                    _ = await alerts.requestNotificationPermission()
+                    await alerts.refreshNotificationStatus()
+                }
+            }
+        case .systemDenied:
+            return PrimaryAction(label: "Open Settings") { openSettings() }
         }
     }
 

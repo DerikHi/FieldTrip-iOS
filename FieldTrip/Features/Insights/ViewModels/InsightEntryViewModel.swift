@@ -244,11 +244,18 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
     // MARK: - Submit
 
     func submit() async {
-        guard draft.hasValidCoordinates else { return }
+        errorMessage = nil
+
+        if let validationMessage = missingFieldMessage() {
+            errorMessage = validationMessage
+            return
+        }
 
         isLoading = true
-        errorMessage = nil
         defer { isLoading = false }
+
+        draft.locationName = draft.locationName.trimmingCharacters(in: .whitespacesAndNewlines)
+        draft.comment = draft.comment.trimmingCharacters(in: .whitespacesAndNewlines)
 
         for text in [draft.locationName, draft.comment] where !text.isEmpty {
             let result = ContentModerationService.checkText(text)
@@ -270,9 +277,28 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
             await uploadPendingPhotos(insightId: insightId, token: token)
             isSuccess = true
         } catch {
-            errorMessage = "Failed to submit: \(error.localizedDescription). Saving offline."
+            errorMessage = "We couldn't reach the server, so your entry has been saved offline. It will sync automatically the next time you're online."
             saveToOfflineQueue()
         }
+    }
+
+    /// Returns a plain-English explanation of any missing required field,
+    /// or nil if the draft is ready to submit. Each message tells the user
+    /// exactly which step to go back to.
+    private func missingFieldMessage() -> String? {
+        if !draft.hasValidCoordinates {
+            return "You must set a location for this entry. Please use the Back button to choose a location with GPS, a place search, or pasted coordinates."
+        }
+        if draft.facilityTypeId.isEmpty && draft.placeType == nil {
+            return "You must identify the type of place, please use the Back button to update this entry."
+        }
+        if draft.locationName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return "You must give this place a name. Please use the Back button to add a location name."
+        }
+        if draft.starRating < 1 {
+            return "You must give this place an overall star rating. Please use the Back button to rate it from 1 to 5 stars."
+        }
+        return nil
     }
 
     private func submitInsight(token: String) async throws -> String {

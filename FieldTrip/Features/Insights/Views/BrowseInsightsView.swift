@@ -238,7 +238,9 @@ struct BrowseInsightsView: View {
     }
 
     private func search() async {
-        let hasText = !searchText.trimmingCharacters(in: .whitespaces).isEmpty
+        let trimmedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        searchText = trimmedSearch
+        let hasText = !trimmedSearch.isEmpty
         guard hasText || hasCoordinates else { return }
 
         isLoading = true
@@ -257,7 +259,7 @@ struct BrowseInsightsView: View {
         var queryItems: [URLQueryItem] = []
 
         if hasText {
-            queryItems.append(URLQueryItem(name: "locationName", value: searchText))
+            queryItems.append(URLQueryItem(name: "locationName", value: trimmedSearch))
         }
 
         queryItems.append(URLQueryItem(name: "radiusMiles", value: String(Int(radiusMiles))))
@@ -735,49 +737,15 @@ struct LocationDetailView: View {
     }
 
     private var shareSummary: String {
-        var lines: [String] = []
-        let name = locationName ?? "Unnamed Location"
-        lines.append(name)
-
-        let starRatings = insights.compactMap(\.starRating)
-        if !starRatings.isEmpty {
-            let avg = Double(starRatings.reduce(0, +)) / Double(starRatings.count)
-            let stars = String(repeating: "\u{2605}", count: Int(avg.rounded())) + String(repeating: "\u{2606}", count: 5 - Int(avg.rounded()))
-            lines.append("\(stars) \(String(format: "%.1f", avg)) (\(starRatings.count) \(starRatings.count == 1 ? "review" : "reviews"))")
-        }
-
-        let allAttributes = insights.flatMap { $0.attributeRatings ?? [] }
-        if !allAttributes.isEmpty {
-            let grouped = Dictionary(grouping: allAttributes, by: \.attributeName)
-            for key in grouped.keys.sorted() {
-                let ratings = grouped[key]!
-                let good = ratings.filter { AttributeRatingDisplay.colorIsPositive(for: $0.rating) == true }.count
-                let bad = ratings.filter { AttributeRatingDisplay.colorIsPositive(for: $0.rating) == false }.count
-                let total = good + bad
-                guard total > 0 else { continue }
-                let pct = Int(Double(good) / Double(total) * 100)
-                lines.append("\(key): \(pct)% positive (\(good) positive, \(bad) negative)")
-            }
-        }
-
-        let comments = insights.compactMap(\.comment).filter { !$0.isEmpty }
-        if !comments.isEmpty {
-            lines.append("")
-            lines.append("Comments:")
-            for comment in comments.prefix(5) {
-                lines.append("- \(comment)")
-            }
-        }
-
-        lines.append("")
-        lines.append("Shared from FieldTrip")
+        let userName = AuthService.shared.currentUserDisplayName ?? "A FieldTrip Pro user"
+        var lines = ["\(userName) has shared a location with you from Field Trip Pro"]
         if let url = NotificationCoordinator.deepLinkURL(
             id: locationId,
             name: locationName,
             lat: latitude,
             lng: longitude
         ) {
-            lines.append("Open in app: \(url.absoluteString)")
+            lines.append(url.absoluteString)
         }
         return lines.joined(separator: "\n")
     }
