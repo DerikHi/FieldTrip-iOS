@@ -61,19 +61,6 @@ struct SpotAPlateView: View {
                     .foregroundStyle(.secondary)
                     .padding(.top, 4)
 
-                if !sortedTallies.isEmpty {
-                    Button(role: .destructive) {
-                        showClearAllConfirm = true
-                    } label: {
-                        Label("Clear All Spotted Plates", systemImage: "trash")
-                            .font(.subheadline)
-                            .frame(maxWidth: .infinity, minHeight: 36)
-                    }
-                    .buttonStyle(.bordered)
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-                }
-
                 if sortedTallies.isEmpty {
                     ContentUnavailableView(
                         "No Plates Spotted",
@@ -103,6 +90,17 @@ struct SpotAPlateView: View {
                         }
                     }
                     .listStyle(.plain)
+
+                    Button(role: .destructive) {
+                        showClearAllConfirm = true
+                    } label: {
+                        Label("Clear All Spotted Plates", systemImage: "trash")
+                            .font(.subheadline)
+                            .frame(maxWidth: .infinity, minHeight: 36)
+                    }
+                    .buttonStyle(.bordered)
+                    .padding(.horizontal)
+                    .padding(.bottom, 8)
                 }
             }
         }

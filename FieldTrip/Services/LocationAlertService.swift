@@ -26,6 +26,21 @@ final class LocationAlertService: NSObject, ObservableObject {
     private let cooldownInterval: TimeInterval = 24 * 60 * 60
     private let refreshDistanceMeters: CLLocationDistance = 1609 // ~1 mile
 
+    /// Facility types eligible for the "Clean Bathroom" nearby alert.
+    /// Names must match `facilityTypeName` returned from the backend's
+    /// /api/locations/nearby endpoint (and the fallback list in
+    /// InsightEntryViewModel).
+    private let bathroomAlertFacilityTypes: Set<String> = [
+        "Boat Launches",
+        "Convenience Stores",
+        "Gas Stations",
+        "Grocery Stores",
+        "Highway Rest Areas",
+        "Public Restrooms",
+        "Truck Stops",
+        "Welcome Centers/Visitor Centers",
+    ]
+
     // Keys
     private let primingChoiceKey = "locationPrimingChoice"
     private let primingUserIdKey = "locationPrimingUserId"
@@ -189,9 +204,14 @@ final class LocationAlertService: NSObject, ObservableObject {
         guard !isCoolingDown(location.locationId) else { return }
         setCooldown(for: location.locationId, at: Date().timeIntervalSince1970)
 
+        let facilityName = location.locationName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let facilityAndType = facilityName.isEmpty
+            ? location.facilityTypeName
+            : "\(facilityName) a \(location.facilityTypeName)"
+
         let content = UNMutableNotificationContent()
-        content.title = "FieldTrip Pro location alert"
-        content.body = "You are approaching a location that you or other users have rated in FTP"
+        content.title = "Clean Bathroom Alert"
+        content.body = "You are approaching a location with a bathroom that FTP users have rated GOOD or GREAT"
         content.sound = .default
         content.userInfo = [
             "locationId": location.locationId,
@@ -199,6 +219,7 @@ final class LocationAlertService: NSObject, ObservableObject {
             "latitude": location.latitude,
             "longitude": location.longitude,
             "facilityTypeName": location.facilityTypeName,
+            "facilityAndType": facilityAndType,
         ]
         content.categoryIdentifier = "LOCATION_ALERT"
 
@@ -259,7 +280,11 @@ extension LocationAlertService: CLLocationManagerDelegate {
             await refreshNearby(at: location)
         }
 
+        let positiveBathroomRatings: Set<String> = ["good", "great"]
         for nearby in nearbyLocations where nearby.distanceMiles <= alertRadiusMiles {
+            guard bathroomAlertFacilityTypes.contains(nearby.facilityTypeName) else { continue }
+            guard let rating = nearby.cleanBathroomRating?.lowercased(),
+                  positiveBathroomRatings.contains(rating) else { continue }
             let target = CLLocation(latitude: nearby.latitude, longitude: nearby.longitude)
             let distMiles = location.distance(from: target) / 1609.34
             if distMiles <= alertRadiusMiles {
@@ -286,4 +311,8 @@ struct NearbyLocation: Decodable {
     let longitude: Double
     let facilityTypeName: String
     let distanceMiles: Double
+    /// Dominant Clean Bathroom rating across this location's insights,
+    /// returned as the lowercase apiValue ("great", "good", "meh", etc.).
+    /// nil when the location has no Clean Bathroom ratings yet.
+    let cleanBathroomRating: String?
 }
