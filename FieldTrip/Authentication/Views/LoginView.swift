@@ -173,6 +173,12 @@ struct LoginView: View {
             .sheet(isPresented: $showRegistration) {
                 RegistrationView()
             }
+            .onReceive(NotificationCenter.default.publisher(for: .emailVerificationSucceeded)) { _ in
+                // Verification completed inside the registration sheet —
+                // dismiss it so the user lands on the login form and can
+                // sign in with their fresh verified credentials.
+                showRegistration = false
+            }
             .onAppear {
                 // Auto-trigger biometric sign-in the first time the Login screen
                 // appears, if the user has previously enabled it. Wrapped in a Task

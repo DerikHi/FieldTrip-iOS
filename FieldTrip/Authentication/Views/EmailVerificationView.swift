@@ -2,29 +2,45 @@ import SwiftUI
 import Combine
 import FirebaseAuth
 
+extension Notification.Name {
+    /// Posted when the user successfully verifies their email on the
+    /// EmailVerificationView screen. LoginView listens for this so the
+    /// registration sheet (which contains EmailVerificationView) can be
+    /// dismissed back to the login form.
+    static let emailVerificationSucceeded = Notification.Name("FTP.emailVerificationSucceeded")
+}
+
 struct EmailVerificationView: View {
     @StateObject private var vm = EmailVerificationViewModel()
     @Environment(\.dismiss) private var dismiss
+    @State private var showSuccess = false
 
     var body: some View {
         VStack(spacing: 32) {
             Spacer()
 
             // Illustration
-            Image(systemName: "envelope.badge.fill")
+            Image(systemName: showSuccess ? "checkmark.seal.fill" : "envelope.badge.fill")
                 .font(.system(size: 80))
-                .foregroundStyle(.tint)
-                .symbolEffect(.pulse)
+                .foregroundStyle(showSuccess ? Color.green : Color.accentColor)
+                .symbolEffect(.pulse, isActive: !showSuccess)
 
             // Text
             VStack(spacing: 12) {
-                Text("Check Your Email")
+                Text(showSuccess ? "Email Verified" : "Check Your Email")
                     .font(.title.bold())
 
-                Text("We sent a verification link to\n\(vm.email)")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                if showSuccess {
+                    Text("You're all set. Sign in to continue.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                } else {
+                    Text("We sent a verification link to\n\(vm.email)")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
             }
 
             // Auto-poll status
@@ -87,6 +103,19 @@ struct EmailVerificationView: View {
         }
         .onAppear { vm.startPolling() }
         .onDisappear { vm.stopPolling() }
+        .onChange(of: vm.isVerified) { _, verified in
+            guard verified else { return }
+            // Sign out so the next signIn() mints a fresh ID token that
+            // carries the new email_verified claim, then pop back to the
+            // login screen. Brief success state shown before dismissing.
+            showSuccess = true
+            try? AuthService.shared.signOut()
+            Task {
+                try? await Task.sleep(for: .seconds(1.2))
+                NotificationCenter.default.post(name: .emailVerificationSucceeded, object: nil)
+                dismiss()
+            }
+        }
     }
 }
 

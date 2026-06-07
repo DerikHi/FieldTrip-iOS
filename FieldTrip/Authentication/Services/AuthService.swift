@@ -141,6 +141,11 @@ final class AuthService: AuthServiceProtocol {
     func reloadUser() async throws -> Bool {
         guard let user = Auth.auth().currentUser else { return false }
         try await user.reload()
+        // Force-refresh the ID token so the cached email_verified claim
+        // matches the freshly reloaded user record. Without this, reload()
+        // can return stale verification state on iOS even after the user
+        // has clicked the verification link.
+        _ = try? await user.getIDTokenResult(forcingRefresh: true)
         return user.isEmailVerified
     }
 

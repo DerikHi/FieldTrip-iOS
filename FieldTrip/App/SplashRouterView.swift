@@ -70,10 +70,12 @@ struct SplashRouterView: View {
                 return
             }
 
-            // Check email verified
+            // Check email verified. We deliberately do NOT sign out an
+            // unverified user here — that would wipe the Firebase session
+            // during the registration flow and break EmailVerificationView's
+            // polling. signIn() already enforces verification, so an
+            // unverified user can't actually reach MainShell from LoginView.
             guard firebaseUser.isEmailVerified else {
-                try? Auth.auth().signOut()
-                KeychainService.clearAll()
                 authState = .unauthenticated
                 return
             }
