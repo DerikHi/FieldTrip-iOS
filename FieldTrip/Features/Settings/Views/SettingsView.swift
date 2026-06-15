@@ -134,12 +134,27 @@ struct SettingsView: View {
                     .font(.subheadline.weight(.semibold))
                 Spacer()
                 Toggle("", isOn: Binding(
-                    get: { alerts.primingChoice == .yes && alerts.locationPermissionGranted },
+                    get: { alerts.locationPermissionGranted },
                     set: { newValue in
                         if newValue {
-                            alerts.enableNearbyAlerts()
+                            // notDetermined → request prompt; .denied → only
+                            // recoverable through iOS Settings, send them there.
+                            switch alerts.authorizationStatus {
+                            case .notDetermined:
+                                alerts.enableNearbyAlerts()
+                            case .denied, .restricted:
+                                if let url = URL(string: UIApplication.openSettingsURLString) {
+                                    UIApplication.shared.open(url)
+                                }
+                            default:
+                                break
+                            }
                         } else {
-                            alerts.disableNearbyAlerts()
+                            // Programmatic revoke isn't possible — point the
+                            // user at iOS Settings so they can flip it there.
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
+                            }
                         }
                     }
                 ))

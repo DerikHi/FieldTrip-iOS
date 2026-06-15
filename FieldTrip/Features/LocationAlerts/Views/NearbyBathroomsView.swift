@@ -11,6 +11,7 @@ struct NearbyBathroomsView: View {
     @State private var results: [NearbyLocation] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var needsLocationPermission = false
 
     private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
 
@@ -28,7 +29,26 @@ struct NearbyBathroomsView: View {
 
     var body: some View {
         Group {
-            if let error = errorMessage {
+            if needsLocationPermission {
+                ContentUnavailableView {
+                    Label("Location Services Required", systemImage: "location.slash.fill")
+                } description: {
+                    Text("To use Nearby Bathrooms Rated Good or Great, please turn on Location Services for FieldTrip Pro. Open the Settings screen (the gear icon) to enable it, or use iOS Settings if access is denied at the system level.")
+                } actions: {
+                    Button {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    } label: {
+                        Text("Open iOS Settings")
+                            .fontWeight(.semibold)
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button("Close") { dismiss() }
+                        .buttonStyle(.bordered)
+                }
+            } else if let error = errorMessage {
                 ContentUnavailableView(
                     "Couldn't Load",
                     systemImage: "exclamationmark.triangle",
@@ -132,19 +152,28 @@ struct NearbyBathroomsView: View {
 
     private func load() async {
         errorMessage = nil
+        needsLocationPermission = false
         isLoading = true
         defer { isLoading = false }
 
-        // Make sure location access has been requested. If denied, point the user at Settings.
-        guard alerts.authorizationStatus == .authorizedWhenInUse
-                || alerts.authorizationStatus == .authorizedAlways else {
-            errorMessage = "Location access is off. Turn on Location Services in the Settings screen to see nearby spots."
+        // If iOS-level location is explicitly denied or restricted, show
+        // the dedicated permission screen so the user knows exactly what
+        // to do. .notDetermined falls through — OneShotLocator will
+        // trigger the system prompt.
+        switch alerts.authorizationStatus {
+        case .denied, .restricted:
+            needsLocationPermission = true
             return
+        default:
+            break
         }
 
         let location: CLLocation
         do {
             location = try await locator.fetch()
+        } catch let clError as CLError where clError.code == .denied {
+            needsLocationPermission = true
+            return
         } catch {
             errorMessage = "We couldn't determine your location. Try again in a moment."
             return
@@ -188,12 +217,38 @@ final class OneShotLocator: NSObject, CLLocationManagerDelegate {
     }
 
     func fetch() async throws -> CLLocation {
-        if manager.authorizationStatus == .notDetermined {
-            manager.requestWhenInUseAuthorization()
-        }
-        return try await withCheckedThrowingContinuation { cont in
+        try await withCheckedThrowingContinuation { cont in
             continuation = cont
-            manager.requestLocation()
+            switch manager.authorizationStatus {
+            case .notDetermined:
+                // Don't call requestLocation yet — wait for the system
+                // permission dialog to settle and requestLocation in
+                // locationManagerDidChangeAuthorization once we know
+                // what the user chose.
+                manager.requestWhenInUseAuthorization()
+            case .authorizedWhenInUse, .authorizedAlways:
+                manager.requestLocation()
+            case .denied, .restricted:
+                continuation?.resume(throwing: CLError(.denied))
+                continuation = nil
+            @unknown default:
+                continuation?.resume(throwing: CLError(.denied))
+                continuation = nil
+            }
+        }
+    }
+
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        Task { @MainActor in
+            switch manager.authorizationStatus {
+            case .authorizedWhenInUse, .authorizedAlways:
+                if continuation != nil { manager.requestLocation() }
+            case .denied, .restricted:
+                continuation?.resume(throwing: CLError(.denied))
+                continuation = nil
+            default:
+                break
+            }
         }
     }
 
