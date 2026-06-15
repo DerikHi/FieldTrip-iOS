@@ -139,13 +139,12 @@ struct MainTabBarView: View {
     }
 }
 
-/// Adds top-leading Home (returns to Welcome), top-trailing Nearby +
+/// Adds top-leading Home (returns to Welcome), top-trailing Nearby Bathrooms +
 /// Settings buttons to every tab's root view.
 struct TabRootToolbar: ViewModifier {
     let user: AuthUser
-    @ObservedObject private var alerts = LocationAlertService.shared
     @EnvironmentObject private var router: AppRouter
-    @State private var showNearbyStatus = false
+    @State private var showNearbyBathrooms = false
     @State private var showSettings = false
 
     func body(content: Content) -> some View {
@@ -159,19 +158,11 @@ struct TabRootToolbar: ViewModifier {
                     .accessibilityLabel("Home")
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showNearbyStatus = true }) {
-                        ZStack(alignment: .topTrailing) {
-                            Image(systemName: "mappin.and.ellipse")
-                                .font(.body.weight(.medium))
-                            if alerts.locationPermissionGranted && alerts.primingChoice == .yes {
-                                Circle()
-                                    .fill(Color.green)
-                                    .frame(width: 7, height: 7)
-                                    .offset(x: 3, y: -2)
-                            }
-                        }
+                    Button(action: { showNearbyBathrooms = true }) {
+                        Image(systemName: "mappin")
+                            .font(.body.weight(.medium))
                     }
-                    .accessibilityLabel("Nearby")
+                    .accessibilityLabel("Nearby Bathrooms")
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { showSettings = true }) {
@@ -181,8 +172,10 @@ struct TabRootToolbar: ViewModifier {
                     .accessibilityLabel("Settings")
                 }
             }
-            .sheet(isPresented: $showNearbyStatus) {
-                NearbyStatusView()
+            .sheet(isPresented: $showNearbyBathrooms) {
+                NavigationStack {
+                    NearbyBathroomsView()
+                }
             }
             .sheet(isPresented: $showSettings) {
                 NavigationStack {

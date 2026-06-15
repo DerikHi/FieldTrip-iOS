@@ -180,12 +180,12 @@ struct MyInsightsView: View {
         defer { isLoading = false }
 
         guard let token = KeychainService.retrieve(for: .authToken) else {
-            errorMessage = "Please sign in again."
+            errorMessage = "An error has occurred, please log in again."
             return
         }
 
         guard let url = URL(string: "\(apiBaseURL)/api/insights") else {
-            errorMessage = "Invalid server URL."
+            errorMessage = "An error has occurred, please log in again."
             return
         }
 
@@ -197,7 +197,7 @@ struct MyInsightsView: View {
             let http = response as! HTTPURLResponse
 
             guard http.statusCode == 200 else {
-                errorMessage = "Server error (\(http.statusCode))."
+                errorMessage = "An error has occurred, please log in again."
                 return
             }
 
@@ -206,7 +206,7 @@ struct MyInsightsView: View {
             )
             entries = decoded.data.insights
         } catch {
-            errorMessage = "Could not load your entries."
+            errorMessage = "An error has occurred, please log in again."
         }
     }
 }
@@ -324,25 +324,31 @@ struct MyEntryDetailView: View {
                         Text("Photos")
                             .font(.subheadline.bold())
                         ForEach(photos, id: \.id) { photo in
-                            AsyncImage(url: URL(string: photo.url)) { image in
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 220)
-                                    .clipped()
-                                    .cornerRadius(10)
-                                    .onTapGesture {
-                                        if let url = URL(string: photo.url) {
-                                            fullScreenPhotoURL = url
-                                        }
+                            // Color.clear defines the visible rectangle; the
+                            // image is placed in an overlay and clipped so
+                            // wide / panoramic photos can't push the detail
+                            // page out to their natural width.
+                            Color.clear
+                                .frame(height: 220)
+                                .frame(maxWidth: .infinity)
+                                .overlay(
+                                    AsyncImage(url: URL(string: photo.url)) { image in
+                                        image
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fill)
+                                    } placeholder: {
+                                        Color(.secondarySystemBackground)
+                                            .overlay(ProgressView())
                                     }
-                            } placeholder: {
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(Color(.secondarySystemBackground))
-                                    .frame(height: 220)
-                                    .overlay(ProgressView())
-                            }
+                                )
+                                .clipped()
+                                .cornerRadius(10)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    if let url = URL(string: photo.url) {
+                                        fullScreenPhotoURL = url
+                                    }
+                                }
                         }
                     }
                 }

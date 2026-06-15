@@ -26,20 +26,6 @@ final class LocationAlertService: NSObject, ObservableObject {
     private let cooldownInterval: TimeInterval = 24 * 60 * 60
     private let refreshDistanceMeters: CLLocationDistance = 1609 // ~1 mile
 
-    /// Facility types eligible for the "Clean Bathroom" nearby alert.
-    /// Names must match `facilityTypeName` returned from the backend's
-    /// /api/locations/nearby endpoint (and the fallback list in
-    /// InsightEntryViewModel).
-    private let bathroomAlertFacilityTypes: Set<String> = [
-        "Boat Launches",
-        "Convenience Stores",
-        "Gas Stations",
-        "Grocery Stores",
-        "Highway Rest Areas",
-        "Public Restrooms",
-        "Truck Stops",
-        "Welcome Centers/Visitor Centers",
-    ]
 
     // Keys
     private let primingChoiceKey = "locationPrimingChoice"
@@ -122,16 +108,14 @@ final class LocationAlertService: NSObject, ObservableObject {
         CLLocationManager.locationServicesEnabled()
     }
 
-    // MARK: - Monitoring
+    // MARK: - Monitoring (now a no-op)
 
-    func startIfPossible() {
-        guard locationPermissionGranted, primingChoice == .yes else { return }
-        manager.startUpdatingLocation()
-        isMonitoring = true
-    }
+    /// Background location monitoring was removed when the Clean Bathroom
+    /// push alerts were retired. The on-demand Nearby Bathrooms screen
+    /// requests location via its own one-shot locator.
+    func startIfPossible() {}
 
     func stop() {
-        manager.stopUpdatingLocation()
         isMonitoring = false
     }
 
@@ -164,93 +148,10 @@ final class LocationAlertService: NSObject, ObservableObject {
         }
     }
 
-    // MARK: - Nearby fetch
-
-    private func refreshNearby(at location: CLLocation) async {
-        guard let token = KeychainService.retrieve(for: .authToken),
-              let url = URL(string: "\(apiBaseURL)/api/locations/nearby?lat=\(location.coordinate.latitude)&lng=\(location.coordinate.longitude)&radius=\(alertRadiusMiles)") else { return }
-
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
-        do {
-            let (data, _) = try await URLSession.shared.data(for: request)
-            let decoded = try JSONDecoder().decode(NearbyResponse.self, from: data)
-            nearbyLocations = decoded.data.results
-            lastFetchedFrom = location
-        } catch {
-            // Silently fail — will retry on next significant move
-        }
-    }
-
-    // MARK: - Notifications
-
-    private func cooldowns() -> [String: TimeInterval] {
-        UserDefaults.standard.dictionary(forKey: cooldownsKey) as? [String: TimeInterval] ?? [:]
-    }
-
-    private func setCooldown(for locationId: String, at time: TimeInterval) {
-        var existing = cooldowns()
-        existing[locationId] = time
-        UserDefaults.standard.set(existing, forKey: cooldownsKey)
-    }
-
-    private func isCoolingDown(_ locationId: String) -> Bool {
-        guard let last = cooldowns()[locationId] else { return false }
-        return Date().timeIntervalSince1970 - last < cooldownInterval
-    }
-
-    private func fireAlert(for location: NearbyLocation) {
-        guard !isCoolingDown(location.locationId) else { return }
-        setCooldown(for: location.locationId, at: Date().timeIntervalSince1970)
-
-        let facilityName = location.locationName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let facilityAndType = facilityName.isEmpty
-            ? location.facilityTypeName
-            : "\(facilityName) a \(location.facilityTypeName)"
-
-        let content = UNMutableNotificationContent()
-        content.title = "Clean Bathroom Alert"
-        content.body = "You are approaching a location with a bathroom that FTP users have rated GOOD or GREAT"
-        content.sound = .default
-        content.userInfo = [
-            "locationId": location.locationId,
-            "locationName": location.locationName ?? "",
-            "latitude": location.latitude,
-            "longitude": location.longitude,
-            "facilityTypeName": location.facilityTypeName,
-            "facilityAndType": facilityAndType,
-        ]
-        content.categoryIdentifier = "LOCATION_ALERT"
-
-        let request = UNNotificationRequest(
-            identifier: "location-\(location.locationId)-\(UUID().uuidString)",
-            content: content,
-            trigger: nil
-        )
-        UNUserNotificationCenter.current().add(request)
-    }
-
-    /// Register the notification category once at app launch
-    func registerNotificationCategory() {
-        let open = UNNotificationAction(
-            identifier: "OPEN_MAP",
-            title: "Open Map",
-            options: [.foreground]
-        )
-        let dismiss = UNNotificationAction(
-            identifier: "DISMISS",
-            title: "Dismiss",
-            options: []
-        )
-        let category = UNNotificationCategory(
-            identifier: "LOCATION_ALERT",
-            actions: [open, dismiss],
-            intentIdentifiers: [],
-            options: []
-        )
-        UNUserNotificationCenter.current().setNotificationCategories([category])
-    }
+    /// Register the notification category once at app launch. Kept as a
+    /// no-op for now — the Clean Bathroom push alerts have been removed;
+    /// users browse the Nearby Bathrooms screen explicitly instead.
+    func registerNotificationCategory() {}
 }
 
 // MARK: - CLLocationManagerDelegate
@@ -266,32 +167,12 @@ extension LocationAlertService: CLLocationManagerDelegate {
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let location = locations.last else { return }
-        Task { @MainActor in
-            await handleLocationUpdate(location)
-        }
+        // Background monitoring no longer fires push alerts. Users access
+        // the Nearby Bathrooms screen on demand; this delegate exists only
+        // so the system permission updates above are picked up.
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {}
-
-    @MainActor
-    private func handleLocationUpdate(_ location: CLLocation) async {
-        if lastFetchedFrom == nil || (lastFetchedFrom?.distance(from: location) ?? .infinity) > refreshDistanceMeters {
-            await refreshNearby(at: location)
-        }
-
-        let positiveBathroomRatings: Set<String> = ["good", "great"]
-        for nearby in nearbyLocations where nearby.distanceMiles <= alertRadiusMiles {
-            guard bathroomAlertFacilityTypes.contains(nearby.facilityTypeName) else { continue }
-            guard let rating = nearby.cleanBathroomRating?.lowercased(),
-                  positiveBathroomRatings.contains(rating) else { continue }
-            let target = CLLocation(latitude: nearby.latitude, longitude: nearby.longitude)
-            let distMiles = location.distance(from: target) / 1609.34
-            if distMiles <= alertRadiusMiles {
-                fireAlert(for: nearby)
-            }
-        }
-    }
 }
 
 // MARK: - Models

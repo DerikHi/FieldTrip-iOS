@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreLocation
 
 struct SettingsView: View {
     let user: AuthUser
@@ -8,6 +9,7 @@ struct SettingsView: View {
     @State private var isWorking = false
     @State private var statusMessage: String?
     @State private var statusIsError = false
+    @ObservedObject private var alerts = LocationAlertService.shared
 
     private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
 
@@ -25,6 +27,8 @@ struct SettingsView: View {
                         .frame(maxWidth: .infinity, minHeight: 50)
                 }
                 .buttonStyle(.bordered)
+
+                locationServicesCard
 
                 DisclosureGroup {
                     PrivacyPolicyContent()
@@ -84,6 +88,7 @@ struct SettingsView: View {
         }
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.inline)
+        .presentationDragIndicator(.visible)
         .sheet(isPresented: $showAdminPhotoSelector) {
             AdminPhotoSelectorView()
         }
@@ -118,6 +123,80 @@ struct SettingsView: View {
         }
     }
 
+    /// In-app Location Services toggle + a read-out of the current iOS
+    /// system permission state, so the user can both see and change their
+    /// location setting without leaving Settings.
+    @ViewBuilder
+    private var locationServicesCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("Location Services", systemImage: "location.fill")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Toggle("", isOn: Binding(
+                    get: { alerts.primingChoice == .yes && alerts.locationPermissionGranted },
+                    set: { newValue in
+                        if newValue {
+                            alerts.enableNearbyAlerts()
+                        } else {
+                            alerts.disableNearbyAlerts()
+                        }
+                    }
+                ))
+                .labelsHidden()
+            }
+
+            HStack(spacing: 6) {
+                Image(systemName: systemIcon)
+                    .foregroundStyle(systemColor)
+                Text("iOS setting: \(systemStatusLabel)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if alerts.authorizationStatus == .denied || alerts.authorizationStatus == .restricted {
+                Button {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                } label: {
+                    Text("Open iOS Settings to enable location")
+                        .font(.caption.weight(.medium))
+                }
+            }
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(10)
+    }
+
+    private var systemStatusLabel: String {
+        switch alerts.authorizationStatus {
+        case .notDetermined: return "Not Set"
+        case .denied: return "Never"
+        case .restricted: return "Restricted"
+        case .authorizedWhenInUse: return "While Using the App"
+        case .authorizedAlways: return "Always"
+        @unknown default: return "Unknown"
+        }
+    }
+
+    private var systemIcon: String {
+        switch alerts.authorizationStatus {
+        case .authorizedWhenInUse, .authorizedAlways: return "checkmark.circle.fill"
+        case .denied, .restricted: return "xmark.circle.fill"
+        default: return "questionmark.circle.fill"
+        }
+    }
+
+    private var systemColor: Color {
+        switch alerts.authorizationStatus {
+        case .authorizedWhenInUse, .authorizedAlways: return .green
+        case .denied, .restricted: return .orange
+        default: return .secondary
+        }
+    }
+
     private func openContact() {
         let subject = "[FieldTrip Feedback]"
         let to = "info@fieldtrippro.com"
@@ -133,7 +212,7 @@ struct SettingsView: View {
 
         guard let token = KeychainService.retrieve(for: .authToken),
               let url = URL(string: "\(apiBaseURL)/api/account/clear-data") else {
-            setStatus("Please sign in again.", isError: true)
+            setStatus("An error has occurred, please log in again.", isError: true)
             return
         }
         var request = URLRequest(url: url)
@@ -145,10 +224,10 @@ struct SettingsView: View {
             if let http = response as? HTTPURLResponse, http.statusCode == 200 {
                 setStatus("Your data has been cleared.", isError: false)
             } else {
-                setStatus("Could not clear data. Please try again later.", isError: true)
+                setStatus("An error has occurred, please log in again.", isError: true)
             }
         } catch {
-            setStatus("Could not clear data. Please try again later.", isError: true)
+            setStatus("An error has occurred, please log in again.", isError: true)
         }
     }
 
@@ -159,7 +238,7 @@ struct SettingsView: View {
 
         guard let token = KeychainService.retrieve(for: .authToken),
               let url = URL(string: "\(apiBaseURL)/api/account") else {
-            setStatus("Please sign in again.", isError: true)
+            setStatus("An error has occurred, please log in again.", isError: true)
             return
         }
         var request = URLRequest(url: url)
@@ -172,10 +251,10 @@ struct SettingsView: View {
                 wipeLocalUserData()
                 try? AuthService.shared.signOut()
             } else {
-                setStatus("Could not delete account. Please try again later.", isError: true)
+                setStatus("An error has occurred, please log in again.", isError: true)
             }
         } catch {
-            setStatus("Could not delete account. Please try again later.", isError: true)
+            setStatus("An error has occurred, please log in again.", isError: true)
         }
     }
 

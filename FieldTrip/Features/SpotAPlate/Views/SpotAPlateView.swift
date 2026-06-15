@@ -144,7 +144,7 @@ struct SpotAPlateView: View {
             }
         } catch {
             tallies[state] = previous
-            errorMessage = "Could not remove sighting."
+            errorMessage = "An error has occurred, please log in again."
         }
     }
 
@@ -157,7 +157,7 @@ struct SpotAPlateView: View {
             try await PlateService.shared.clearAllSightings()
         } catch {
             tallies = snapshot
-            errorMessage = "Could not clear sightings."
+            errorMessage = "An error has occurred, please log in again."
         }
     }
 
@@ -174,7 +174,7 @@ struct SpotAPlateView: View {
             let results = try await PlateService.shared.fetchTallies()
             tallies = Dictionary(uniqueKeysWithValues: results.map { ($0.state, $0.count) })
         } catch {
-            errorMessage = "Could not load tallies."
+            errorMessage = "An error has occurred, please log in again."
         }
     }
 
@@ -188,7 +188,7 @@ struct SpotAPlateView: View {
         } catch {
             tallies[state, default: 1] -= 1
             if tallies[state] == 0 { tallies.removeValue(forKey: state) }
-            errorMessage = "Could not save sighting."
+            errorMessage = "An error has occurred, please log in again."
         }
     }
 }

@@ -109,7 +109,7 @@ struct LeaderboardView: View {
                 .listStyle(.plain)
             }
         }
-        .navigationTitle("Leaderboard")
+        .navigationTitle("Check In Leaderboard")
         .task { await loadLeaderboard() }
     }
 
@@ -118,12 +118,12 @@ struct LeaderboardView: View {
         defer { isLoading = false }
 
         guard let token = KeychainService.retrieve(for: .authToken) else {
-            errorMessage = "Please sign in again."
+            errorMessage = "An error has occurred, please log in again."
             return
         }
 
         guard let url = URL(string: "\(apiBaseURL)/api/checkins/leaderboard") else {
-            errorMessage = "Invalid server URL."
+            errorMessage = "An error has occurred, please log in again."
             return
         }
 
@@ -135,7 +135,7 @@ struct LeaderboardView: View {
             let http = response as! HTTPURLResponse
 
             guard http.statusCode == 200 else {
-                errorMessage = "Server error (\(http.statusCode))."
+                errorMessage = "An error has occurred, please log in again."
                 return
             }
 
@@ -145,7 +145,7 @@ struct LeaderboardView: View {
             topUsers = decoded.data.topUsers
             entries = decoded.data.results
         } catch {
-            errorMessage = "Could not load leaderboard."
+            errorMessage = "An error has occurred, please log in again."
         }
     }
 }

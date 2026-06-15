@@ -134,7 +134,7 @@ struct EditEntryView: View {
 
         guard let token = KeychainService.retrieve(for: .authToken),
               let url = URL(string: "\(apiBaseURL)/api/insights/\(entry.id)") else {
-            errorMessage = "Please sign in again."
+            errorMessage = "An error has occurred, please log in again."
             return
         }
 
@@ -161,10 +161,10 @@ struct EditEntryView: View {
                 dismiss()
                 onSaved()
             } else {
-                errorMessage = "Could not save changes. Please try again later."
+                errorMessage = "An error has occurred, please log in again."
             }
         } catch {
-            errorMessage = "Could not save changes. Please try again later."
+            errorMessage = "An error has occurred, please log in again."
         }
     }
 }

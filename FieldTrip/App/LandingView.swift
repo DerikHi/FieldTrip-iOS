@@ -6,9 +6,8 @@ import SwiftUI
 struct LandingView: View {
     let user: AuthUser
     @State private var showSettings = false
-    @State private var showNearbyStatus = false
+    @State private var showNearbyBathrooms = false
     @State private var useAlternateWelcomeImage = false
-    @ObservedObject private var alerts = LocationAlertService.shared
 
     var body: some View {
       NavigationStack {
@@ -48,19 +47,11 @@ struct LandingView: View {
                 .accessibilityLabel("Swap welcome image")
             }
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { showNearbyStatus = true }) {
-                    ZStack(alignment: .topTrailing) {
-                        Image(systemName: "mappin.and.ellipse")
-                            .font(.body.weight(.medium))
-                        if alerts.locationPermissionGranted && alerts.primingChoice == .yes {
-                            Circle()
-                                .fill(Color.green)
-                                .frame(width: 7, height: 7)
-                                .offset(x: 3, y: -2)
-                        }
-                    }
+                Button(action: { showNearbyBathrooms = true }) {
+                    Image(systemName: "mappin")
+                        .font(.body.weight(.medium))
                 }
-                .accessibilityLabel("Nearby")
+                .accessibilityLabel("Nearby Bathrooms")
             }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: { showSettings = true }) {
@@ -75,8 +66,10 @@ struct LandingView: View {
                 SettingsView(user: user)
             }
         }
-        .sheet(isPresented: $showNearbyStatus) {
-            NearbyStatusView()
+        .sheet(isPresented: $showNearbyBathrooms) {
+            NavigationStack {
+                NearbyBathroomsView()
+            }
         }
       }
     }

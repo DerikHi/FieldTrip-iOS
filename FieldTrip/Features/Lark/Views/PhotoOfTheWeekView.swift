@@ -36,6 +36,27 @@ struct PhotoOfTheWeekView: View {
                         Text(photo.submittedByUserName)
                             .font(.title3.weight(.semibold))
                             .frame(maxWidth: .infinity, alignment: .center)
+
+                        if let description = photo.description?
+                            .trimmingCharacters(in: .whitespacesAndNewlines),
+                           !description.isEmpty {
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                    Image(systemName: "quote.opening")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    Text(description)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.primary)
+                                        .multilineTextAlignment(.leading)
+                                }
+                            }
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(.secondarySystemBackground))
+                            .cornerRadius(10)
+                            .padding(.horizontal, 4)
+                        }
                     }
                     .padding()
                 }
@@ -57,7 +78,7 @@ struct PhotoOfTheWeekView: View {
 
         guard let token = KeychainService.retrieve(for: .authToken),
               let url = URL(string: "\(apiBaseURL)/api/photo-of-the-week") else {
-            errorMessage = "Please sign in again."
+            errorMessage = "An error has occurred, please log in again."
             return
         }
 
@@ -69,7 +90,7 @@ struct PhotoOfTheWeekView: View {
             let decoded = try JSONDecoder.apiDecoder.decode(APIResponse<PhotoOfTheWeekResponse>.self, from: data)
             photo = decoded.data.photo
         } catch {
-            errorMessage = "Could not load Photo of the Week."
+            errorMessage = "An error has occurred, please log in again."
         }
     }
 }
@@ -84,4 +105,5 @@ struct PhotoOfTheWeekModel: Decodable {
     let submittedByUserName: String
     let locationName: String?
     let selectedAt: Date
+    let description: String?
 }

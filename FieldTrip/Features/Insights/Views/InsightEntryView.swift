@@ -332,65 +332,80 @@ struct RatingsStepView: View {
 
 struct CommentStepView: View {
     @ObservedObject var vm: InsightEntryViewModel
+    @FocusState private var commentFocused: Bool
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                Text("Overall Rating & Comment")
-                    .font(.title2.bold())
-                    .padding(.top)
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    Text("Overall Rating & Comment")
+                        .font(.title2.bold())
+                        .padding(.top)
 
-                if let error = vm.errorMessage, vm.currentStep == .comment {
-                    ErrorBanner(message: error)
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Overall star rating")
-                        .font(.subheadline.bold())
-
-                    HStack(spacing: 8) {
-                        ForEach(1...5, id: \.self) { star in
-                            Button(action: { vm.draft.starRating = star }) {
-                                Image(systemName: star <= vm.draft.starRating ? "star.fill" : "star")
-                                    .font(.title)
-                                    .foregroundStyle(star <= vm.draft.starRating ? .yellow : .gray.opacity(0.4))
-                            }
-                            .buttonStyle(.plain)
-                        }
+                    if let error = vm.errorMessage, vm.currentStep == .comment {
+                        ErrorBanner(message: error)
                     }
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .background(Color(.secondarySystemBackground))
-                    .cornerRadius(10)
-                }
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Comment (optional)")
-                        .font(.subheadline.bold())
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Overall star rating")
+                            .font(.subheadline.bold())
 
-                    TextEditor(text: $vm.draft.comment)
-                        .frame(minHeight: 120)
-                        .padding(8)
+                        HStack(spacing: 8) {
+                            ForEach(1...5, id: \.self) { star in
+                                Button(action: { vm.draft.starRating = star }) {
+                                    Image(systemName: star <= vm.draft.starRating ? "star.fill" : "star")
+                                        .font(.title)
+                                        .foregroundStyle(star <= vm.draft.starRating ? .yellow : .gray.opacity(0.4))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .center)
                         .background(Color(.secondarySystemBackground))
                         .cornerRadius(10)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(vm.draft.comment.count > 125 ? Color.red : Color.clear, lineWidth: 1.5)
-                        )
+                    }
 
-                    HStack {
-                        Spacer()
-                        Text("\(vm.draft.comment.count)/125")
-                            .font(.caption)
-                            .foregroundStyle(vm.draft.comment.count > 125 ? .red : .secondary)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Comment (optional)")
+                            .font(.subheadline.bold())
+
+                        TextEditor(text: $vm.draft.comment)
+                            .focused($commentFocused)
+                            .frame(minHeight: 120)
+                            .padding(8)
+                            .background(Color(.secondarySystemBackground))
+                            .cornerRadius(10)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(vm.draft.comment.count > 125 ? Color.red : Color.clear, lineWidth: 1.5)
+                            )
+
+                        HStack {
+                            Spacer()
+                            Text("\(vm.draft.comment.count)/125")
+                                .font(.caption)
+                                .foregroundStyle(vm.draft.comment.count > 125 ? .red : .secondary)
+                        }
+                    }
+                    .id("commentField")
+
+                    // Spacer that grows when the keyboard is up so the
+                    // comment editor can be scrolled clear of it.
+                    Color.clear.frame(height: commentFocused ? 320 : 0)
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 32)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .onChange(of: commentFocused) { _, focused in
+                if focused {
+                    withAnimation(.easeOut(duration: 0.25)) {
+                        proxy.scrollTo("commentField", anchor: .top)
                     }
                 }
-
             }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 32)
         }
-        .scrollDismissesKeyboard(.interactively)
     }
 }
 

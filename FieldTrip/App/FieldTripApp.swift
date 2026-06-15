@@ -9,6 +9,11 @@ struct FieldTripApp: App {
 
     init() {
         FirebaseApp.configure()
+        // Always start at the Login screen. Biometric auto-sign-in still
+        // makes this one tap when enabled; otherwise users type their
+        // credentials. Session-only keychain entries are cleared;
+        // biometric_email / biometric_password survive (see KeychainService).
+        try? AuthService.shared.signOut()
         LocationAlertService.shared.registerNotificationCategory()
         UNUserNotificationCenter.current().delegate = NotificationCoordinator.shared
     }

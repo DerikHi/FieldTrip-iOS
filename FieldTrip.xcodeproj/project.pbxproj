@@ -435,6 +435,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FieldTrip/Info.plist;
 				"INFOPLIST_FILE[sdk=*]" = "";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Field Trip Pro uses the camera to let you add photos to your reviews.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Field Trip Pro uses Face ID to sign you in quickly and securely.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "FieldTrip uses your location to tag entries you create and to alert you when you're near a rated location";
@@ -452,6 +453,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				NEW_SETTING = "";
 				PRODUCT_BUNDLE_IDENTIFIER = com.fieldtrippro.FieldTrip;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -475,6 +477,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FieldTrip/Info.plist;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				"INFOPLIST_KEY_ITSAppUsesNonExemptEncryption[sdk=*]" = "";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Field Trip Pro uses the camera to let you add photos to your reviews.";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Field Trip Pro uses Face ID to sign you in quickly and securely.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "FieldTrip uses your location to tag entries you create and to alert you when you're near a rated location";
@@ -492,6 +496,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				NEW_SETTING = "";
 				PRODUCT_BUNDLE_IDENTIFIER = com.fieldtrippro.FieldTrip;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;

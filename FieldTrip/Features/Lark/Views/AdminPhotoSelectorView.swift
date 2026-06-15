@@ -8,6 +8,8 @@ struct AdminPhotoSelectorView: View {
     @State private var errorMessage: String?
     @State private var successMessage: String?
     @State private var page = 1
+    @State private var pendingPhoto: AdminPhoto?
+    @State private var pendingDescription = ""
 
     private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
     private let columns = [GridItem(.adaptive(minimum: 140), spacing: 12)]
@@ -31,7 +33,8 @@ struct AdminPhotoSelectorView: View {
                 LazyVGrid(columns: columns, spacing: 12) {
                     ForEach(photos, id: \.photoId) { photo in
                         Button {
-                            Task { await select(photo: photo) }
+                            pendingPhoto = photo
+                            pendingDescription = ""
                         } label: {
                             VStack(alignment: .leading, spacing: 6) {
                                 AsyncImage(url: URL(string: photo.url)) { image in
@@ -93,6 +96,20 @@ struct AdminPhotoSelectorView: View {
                 }
             }
             .task { if photos.isEmpty { await loadFirstPage() } }
+            .sheet(item: $pendingPhoto) { photo in
+                DescriptionSheet(
+                    photo: photo,
+                    description: $pendingDescription,
+                    isSubmitting: isSelecting,
+                    onConfirm: {
+                        Task { await select(photo: photo, description: pendingDescription) }
+                    },
+                    onCancel: {
+                        pendingPhoto = nil
+                        pendingDescription = ""
+                    }
+                )
+            }
         }
     }
 
@@ -112,7 +129,7 @@ struct AdminPhotoSelectorView: View {
         errorMessage = nil
         guard let token = KeychainService.retrieve(for: .authToken),
               let url = URL(string: "\(apiBaseURL)/api/admin/photos?page=\(page)") else {
-            errorMessage = "Please sign in again."
+            errorMessage = "An error has occurred, please log in again."
             return
         }
         var request = URLRequest(url: url)
@@ -126,18 +143,18 @@ struct AdminPhotoSelectorView: View {
                 photos += decoded.data.photos
             }
         } catch {
-            errorMessage = "Could not load photos."
+            errorMessage = "An error has occurred, please log in again."
         }
     }
 
-    private func select(photo: AdminPhoto) async {
+    private func select(photo: AdminPhoto, description: String) async {
         isSelecting = true
         defer { isSelecting = false }
         errorMessage = nil
 
         guard let token = KeychainService.retrieve(for: .authToken),
               let url = URL(string: "\(apiBaseURL)/api/admin/photo-of-the-week") else {
-            errorMessage = "Please sign in again."
+            errorMessage = "An error has occurred, please log in again."
             return
         }
 
@@ -145,18 +162,70 @@ struct AdminPhotoSelectorView: View {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.httpBody = try? JSONSerialization.data(withJSONObject: ["photoId": photo.photoId])
+
+        var payload: [String: Any] = ["photoId": photo.photoId]
+        let trimmed = description.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty { payload["description"] = trimmed }
+        request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
 
         do {
             let (_, response) = try await URLSession.shared.data(for: request)
             if let http = response as? HTTPURLResponse, http.statusCode == 200 {
                 successMessage = "Photo of the Week updated."
+                pendingPhoto = nil
+                pendingDescription = ""
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { dismiss() }
             } else {
-                errorMessage = "Could not select photo."
+                errorMessage = "An error has occurred, please log in again."
             }
         } catch {
-            errorMessage = "Could not select photo."
+            errorMessage = "An error has occurred, please log in again."
+        }
+    }
+}
+
+private struct DescriptionSheet: View {
+    let photo: AdminPhoto
+    @Binding var description: String
+    let isSubmitting: Bool
+    let onConfirm: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    AsyncImage(url: URL(string: photo.url)) { image in
+                        image.resizable().aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Color(.secondarySystemBackground).overlay(ProgressView())
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 180)
+                    .clipped()
+                    .cornerRadius(8)
+                    Text(photo.userName).font(.subheadline.weight(.medium))
+                    if let locationName = photo.locationName {
+                        Text(locationName).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Section("Description (optional)") {
+                    TextField("e.g. Captured at sunset on the Blue Ridge Parkway", text: $description, axis: .vertical)
+                        .lineLimit(3...6)
+                }
+            }
+            .navigationTitle("Set Photo of the Week")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel", action: onCancel).disabled(isSubmitting)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Set", action: onConfirm)
+                        .fontWeight(.semibold)
+                        .disabled(isSubmitting)
+                }
+            }
         }
     }
 }
@@ -167,7 +236,7 @@ struct AdminPhotosResponse: Decodable {
     let pageSize: Int
 }
 
-struct AdminPhoto: Decodable {
+struct AdminPhoto: Decodable, Identifiable {
     let photoId: String
     let url: String
     let userId: String
@@ -175,4 +244,6 @@ struct AdminPhoto: Decodable {
     let locationId: String
     let locationName: String?
     let createdAt: Date
+
+    var id: String { photoId }
 }

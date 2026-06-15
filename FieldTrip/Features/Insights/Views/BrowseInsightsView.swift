@@ -249,7 +249,7 @@ struct BrowseInsightsView: View {
         defer { isLoading = false }
 
         guard let token = KeychainService.retrieve(for: .authToken) else {
-            errorMessage = "Please sign in again."
+            errorMessage = "An error has occurred, please log in again."
             return
         }
 
@@ -294,7 +294,7 @@ struct BrowseInsightsView: View {
             let http = response as! HTTPURLResponse
 
             guard http.statusCode == 200 else {
-                errorMessage = "Server error (\(http.statusCode))."
+                errorMessage = "An error has occurred, please log in again."
                 return
             }
 
@@ -303,7 +303,7 @@ struct BrowseInsightsView: View {
             )
             results = decoded.data.results
         } catch {
-            errorMessage = "Could not load results."
+            errorMessage = "An error has occurred, please log in again."
         }
     }
 }
@@ -622,25 +622,27 @@ struct LocationDetailView: View {
                                 Text("Photos")
                                     .font(.subheadline.bold())
                                 ForEach(allPhotos, id: \.id) { photo in
-                                    AsyncImage(url: URL(string: photo.url)) { image in
-                                        image
-                                            .resizable()
-                                            .scaledToFill()
-                                            .frame(maxWidth: .infinity)
-                                            .frame(height: 220)
-                                            .clipped()
-                                            .cornerRadius(10)
-                                            .onTapGesture {
-                                                if let url = URL(string: photo.url) {
-                                                    fullScreenPhotoURL = url
-                                                }
+                                    Color.clear
+                                        .frame(height: 220)
+                                        .frame(maxWidth: .infinity)
+                                        .overlay(
+                                            AsyncImage(url: URL(string: photo.url)) { image in
+                                                image
+                                                    .resizable()
+                                                    .aspectRatio(contentMode: .fill)
+                                            } placeholder: {
+                                                Color(.secondarySystemBackground)
+                                                    .overlay(ProgressView())
                                             }
-                                    } placeholder: {
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .fill(Color(.secondarySystemBackground))
-                                            .frame(height: 220)
-                                            .overlay(ProgressView())
-                                    }
+                                        )
+                                        .clipped()
+                                        .cornerRadius(10)
+                                        .contentShape(Rectangle())
+                                        .onTapGesture {
+                                            if let url = URL(string: photo.url) {
+                                                fullScreenPhotoURL = url
+                                            }
+                                        }
                                 }
                             }
                         }
@@ -755,7 +757,7 @@ struct LocationDetailView: View {
         defer { isLoading = false }
 
         guard let token = KeychainService.retrieve(for: .authToken) else {
-            errorMessage = "Please sign in again."
+            errorMessage = "An error has occurred, please log in again."
             return
         }
 
@@ -767,7 +769,7 @@ struct LocationDetailView: View {
             let (data, response) = try await URLSession.shared.data(for: request)
             let http = response as! HTTPURLResponse
             guard http.statusCode == 200 else {
-                errorMessage = "Server error (\(http.statusCode))."
+                errorMessage = "An error has occurred, please log in again."
                 return
             }
             let decoded = try JSONDecoder.apiDecoder.decode(
@@ -775,7 +777,7 @@ struct LocationDetailView: View {
             )
             insights = decoded.data.insights
         } catch {
-            errorMessage = "Could not load entries."
+            errorMessage = "An error has occurred, please log in again."
         }
     }
 }
