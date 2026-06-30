@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		631ECBE02FAE4C7E00DEE697 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 631ECBDF2FAE4C7E00DEE697 /* FirebaseAuth */; };
 		631ECBE22FAE4C8400DEE697 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 631ECBE12FAE4C8400DEE697 /* FirebaseCore */; };
+		63E534192FF3780E00D0455E /* FirebaseAppCheck in Frameworks */ = {isa = PBXBuildFile; productRef = 63E534182FF3780E00D0455E /* FirebaseAppCheck */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -71,6 +72,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				631ECBE22FAE4C8400DEE697 /* FirebaseCore in Frameworks */,
+				63E534192FF3780E00D0455E /* FirebaseAppCheck in Frameworks */,
 				631ECBE02FAE4C7E00DEE697 /* FirebaseAuth in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -142,6 +144,7 @@
 			packageProductDependencies = (
 				631ECBDF2FAE4C7E00DEE697 /* FirebaseAuth */,
 				631ECBE12FAE4C8400DEE697 /* FirebaseCore */,
+				63E534182FF3780E00D0455E /* FirebaseAppCheck */,
 			);
 			productName = FieldTrip;
 			productReference = 631ECB702FAD447900DEE697 /* FieldTrip.app */;
@@ -429,7 +432,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 22;
 				DEVELOPMENT_TEAM = X62U57SR6X;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -472,7 +475,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 22;
 				DEVELOPMENT_TEAM = X62U57SR6X;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -655,6 +658,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 631ECBDD2FAE48BC00DEE697 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseCore;
+		};
+		63E534182FF3780E00D0455E /* FirebaseAppCheck */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 631ECBDD2FAE48BC00DEE697 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAppCheck;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

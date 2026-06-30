@@ -1,13 +1,37 @@
 import SwiftUI
 import FirebaseCore
+import FirebaseAppCheck
 import UserNotifications
 import Combine
+
+/// Supplies App Check providers. On real devices we attest with App Attest;
+/// the debug provider is used for the simulator, where App Attest is
+/// unavailable. Must be installed before `FirebaseApp.configure()`.
+final class FieldTripAppCheckProviderFactory: NSObject, AppCheckProviderFactory {
+    func createProvider(with app: FirebaseApp) -> AppCheckProvider? {
+        #if targetEnvironment(simulator)
+        return AppCheckDebugProvider(app: app)
+        #else
+        return AppAttestProvider(app: app)
+        #endif
+    }
+}
 
 @main
 struct FieldTripApp: App {
     @StateObject private var notificationCoordinator = NotificationCoordinator.shared
 
     init() {
+        // Install App Check before configuring Firebase so the first Firebase
+        // request carries an attestation token. DEBUG builds use the debug
+        // provider (logs a token to register in the Firebase console); release
+        // builds attest on-device with App Attest.
+        #if DEBUG
+        AppCheck.setAppCheckProviderFactory(AppCheckDebugProviderFactory())
+        #else
+        AppCheck.setAppCheckProviderFactory(FieldTripAppCheckProviderFactory())
+        #endif
+
         FirebaseApp.configure()
         // Always start at the Login screen. Biometric auto-sign-in still
         // makes this one tap when enabled; otherwise users type their
