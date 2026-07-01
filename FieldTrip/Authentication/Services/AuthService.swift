@@ -58,6 +58,28 @@ final class AuthService: AuthServiceProtocol {
         Auth.auth().currentUser?.displayName
     }
 
+    // MARK: - Update Display Name
+
+    /// Updates the user's public display name ("User Name"). Persists it to the
+    /// backend (which the app reads via a join everywhere entries appear) and
+    /// mirrors it to the Firebase `displayName` used for the share message.
+    /// Returns the refreshed `AuthUser`.
+    @discardableResult
+    func updateDisplayName(_ newName: String) async throws -> AuthUser {
+        let user = try await APIClient.shared.send(
+            "PATCH", "/api/auth/me",
+            json: ["fullName": newName],
+            decode: APIResponse<AuthUser>.self
+        ).data
+
+        if let firebaseUser = Auth.auth().currentUser {
+            let change = firebaseUser.createProfileChangeRequest()
+            change.displayName = newName
+            try? await change.commitChanges()
+        }
+        return user
+    }
+
     // MARK: - Sign In
 
     func signIn(email: String, password: String) async throws -> AuthUser {

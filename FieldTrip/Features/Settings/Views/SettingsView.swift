@@ -6,6 +6,7 @@ struct SettingsView: View {
     @State private var showClearDataConfirm = false
     @State private var showDeleteAccountConfirm = false
     @State private var showAdminPhotoSelector = false
+    @State private var showAccountInfo = false
     @State private var isWorking = false
     @State private var statusMessage: String?
     @State private var statusIsError = false
@@ -14,6 +15,12 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
+                Button(action: { showAccountInfo = true }) {
+                    Label("Account Info", systemImage: "person.text.rectangle")
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                }
+                .buttonStyle(.bordered)
+
                 Button(action: openContact) {
                     Label("Contact", systemImage: "envelope.fill")
                         .frame(maxWidth: .infinity, minHeight: 50)
@@ -89,6 +96,9 @@ struct SettingsView: View {
         .presentationDragIndicator(.visible)
         .sheet(isPresented: $showAdminPhotoSelector) {
             AdminPhotoSelectorView()
+        }
+        .sheet(isPresented: $showAccountInfo) {
+            AccountInfoView(user: user)
         }
         .overlay {
             if isWorking {
