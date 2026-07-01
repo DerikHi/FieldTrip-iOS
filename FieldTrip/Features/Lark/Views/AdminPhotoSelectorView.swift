@@ -11,7 +11,6 @@ struct AdminPhotoSelectorView: View {
     @State private var pendingPhoto: AdminPhoto?
     @State private var pendingDescription = ""
 
-    private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
     private let columns = [GridItem(.adaptive(minimum: 140), spacing: 12)]
 
     var body: some View {
@@ -127,16 +126,12 @@ struct AdminPhotoSelectorView: View {
 
     private func fetchPage(replace: Bool) async {
         errorMessage = nil
-        guard let token = KeychainService.retrieve(for: .authToken),
-              let url = URL(string: "\(apiBaseURL)/api/admin/photos?page=\(page)") else {
-            errorMessage = "An error has occurred, please log in again."
-            return
-        }
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         do {
-            let (data, _) = try await URLSession.shared.data(for: request)
-            let decoded = try JSONDecoder.apiDecoder.decode(APIResponse<AdminPhotosResponse>.self, from: data)
+            let decoded = try await APIClient.shared.get(
+                "/api/admin/photos",
+                query: [URLQueryItem(name: "page", value: String(page))],
+                decode: APIResponse<AdminPhotosResponse>.self
+            )
             if replace {
                 photos = decoded.data.photos
             } else {
@@ -152,32 +147,16 @@ struct AdminPhotoSelectorView: View {
         defer { isSelecting = false }
         errorMessage = nil
 
-        guard let token = KeychainService.retrieve(for: .authToken),
-              let url = URL(string: "\(apiBaseURL)/api/admin/photo-of-the-week") else {
-            errorMessage = "An error has occurred, please log in again."
-            return
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
         var payload: [String: Any] = ["photoId": photo.photoId]
         let trimmed = description.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmed.isEmpty { payload["description"] = trimmed }
-        request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
 
         do {
-            let (_, response) = try await URLSession.shared.data(for: request)
-            if let http = response as? HTTPURLResponse, http.statusCode == 200 {
-                successMessage = "Photo of the Week updated."
-                pendingPhoto = nil
-                pendingDescription = ""
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { dismiss() }
-            } else {
-                errorMessage = "An error has occurred, please log in again."
-            }
+            try await APIClient.shared.send("POST", "/api/admin/photo-of-the-week", json: payload)
+            successMessage = "Photo of the Week updated."
+            pendingPhoto = nil
+            pendingDescription = ""
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { dismiss() }
         } catch {
             errorMessage = "An error has occurred, please log in again."
         }

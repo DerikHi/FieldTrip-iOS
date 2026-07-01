@@ -9,8 +9,6 @@ struct MyInsightsView: View {
     @State private var selectedFacilityType: String?
     @State private var showFilterSheet = false
 
-    private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
-
     private var facilityTypeNames: [String] {
         Array(Set(entries.map { $0.location.facilityType.name })).sorted()
     }
@@ -179,31 +177,8 @@ struct MyInsightsView: View {
         isLoading = true
         defer { isLoading = false }
 
-        guard let token = KeychainService.retrieve(for: .authToken) else {
-            errorMessage = "An error has occurred, please log in again."
-            return
-        }
-
-        guard let url = URL(string: "\(apiBaseURL)/api/insights") else {
-            errorMessage = "An error has occurred, please log in again."
-            return
-        }
-
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            let http = response as! HTTPURLResponse
-
-            guard http.statusCode == 200 else {
-                errorMessage = "An error has occurred, please log in again."
-                return
-            }
-
-            let decoded = try JSONDecoder.apiDecoder.decode(
-                APIResponse<MyEntriesPage>.self, from: data
-            )
+            let decoded = try await APIClient.shared.get("/api/insights", decode: APIResponse<MyEntriesPage>.self)
             entries = decoded.data.insights
         } catch {
             errorMessage = "An error has occurred, please log in again."
@@ -224,8 +199,6 @@ struct MyEntryDetailView: View {
     @State private var isDeleting = false
     @State private var deleteError: String?
     @State private var showEditReview = false
-
-    private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
 
     var body: some View {
         ScrollView {
@@ -449,33 +422,19 @@ struct MyEntryDetailView: View {
         isDeleting = true
         defer { isDeleting = false }
 
-        guard let token = KeychainService.retrieve(for: .authToken),
-              let url = URL(string: "\(apiBaseURL)/api/insights/\(entry.id)") else {
-            deleteError = "Please sign in again."
-            return
-        }
-        var request = URLRequest(url: url)
-        request.httpMethod = "DELETE"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
         do {
-            let (_, response) = try await URLSession.shared.data(for: request)
-            if let http = response as? HTTPURLResponse, http.statusCode == 200 {
-                dismiss()
-            } else {
-                deleteError = "Could not delete this entry. Please try again later."
-            }
+            try await APIClient.shared.send("DELETE", "/api/insights/\(entry.id)")
+            dismiss()
         } catch {
             deleteError = "Could not delete this entry. Please try again later."
         }
     }
 
     private func loadCheckInCount() async {
-        guard let token = KeychainService.retrieve(for: .authToken),
-              let url = URL(string: "\(apiBaseURL)/api/checkins?locationId=\(entry.locationId)") else { return }
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        guard let (data, _) = try? await URLSession.shared.data(for: request),
+        guard let data = try? await APIClient.shared.data(
+                "GET", "/api/checkins",
+                query: [URLQueryItem(name: "locationId", value: entry.locationId)]
+              ),
               let decoded = try? JSONDecoder.apiDecoder.decode(APIResponse<CheckInCountResponse>.self, from: data) else { return }
         checkInCount = decoded.data.count
     }
@@ -484,16 +443,11 @@ struct MyEntryDetailView: View {
         isCheckingIn = true
         defer { isCheckingIn = false }
 
-        guard let token = KeychainService.retrieve(for: .authToken),
-              let url = URL(string: "\(apiBaseURL)/api/checkins") else { return }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.httpBody = try? JSONEncoder().encode(["locationId": entry.locationId])
-
-        guard let (data, _) = try? await URLSession.shared.data(for: request),
-              let decoded = try? JSONDecoder.apiDecoder.decode(APIResponse<CheckInResponse>.self, from: data) else { return }
+        guard let decoded = try? await APIClient.shared.send(
+                "POST", "/api/checkins",
+                json: ["locationId": entry.locationId],
+                decode: APIResponse<CheckInResponse>.self
+              ) else { return }
         checkInCount = decoded.data.count
     }
 

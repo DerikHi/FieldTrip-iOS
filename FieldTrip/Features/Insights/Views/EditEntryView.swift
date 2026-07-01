@@ -14,8 +14,6 @@ struct EditEntryView: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
 
-    private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
-
     init(entry: MyEntry, onSaved: @escaping () -> Void) {
         self.entry = entry
         self.onSaved = onSaved
@@ -132,12 +130,6 @@ struct EditEntryView: View {
         errorMessage = nil
         defer { isSaving = false }
 
-        guard let token = KeychainService.retrieve(for: .authToken),
-              let url = URL(string: "\(apiBaseURL)/api/insights/\(entry.id)") else {
-            errorMessage = "An error has occurred, please log in again."
-            return
-        }
-
         let attrPayload = attributeEntries
             .filter { $0.rating != .na }
             .map { ["attributeName": $0.name, "rating": $0.rating.apiValue] }
@@ -149,20 +141,10 @@ struct EditEntryView: View {
             "attributeRatings": attrPayload,
         ]
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "PATCH"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-
         do {
-            let (_, response) = try await URLSession.shared.data(for: request)
-            if let http = response as? HTTPURLResponse, http.statusCode == 200 {
-                dismiss()
-                onSaved()
-            } else {
-                errorMessage = "An error has occurred, please log in again."
-            }
+            try await APIClient.shared.send("PATCH", "/api/insights/\(entry.id)", json: body)
+            dismiss()
+            onSaved()
         } catch {
             errorMessage = "An error has occurred, please log in again."
         }

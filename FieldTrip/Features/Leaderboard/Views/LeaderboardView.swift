@@ -6,8 +6,6 @@ struct LeaderboardView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
 
-    private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
-
     var body: some View {
         Group {
             if isLoading {
@@ -117,30 +115,10 @@ struct LeaderboardView: View {
         isLoading = true
         defer { isLoading = false }
 
-        guard let token = KeychainService.retrieve(for: .authToken) else {
-            errorMessage = "An error has occurred, please log in again."
-            return
-        }
-
-        guard let url = URL(string: "\(apiBaseURL)/api/checkins/leaderboard") else {
-            errorMessage = "An error has occurred, please log in again."
-            return
-        }
-
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            let http = response as! HTTPURLResponse
-
-            guard http.statusCode == 200 else {
-                errorMessage = "An error has occurred, please log in again."
-                return
-            }
-
-            let decoded = try JSONDecoder.apiDecoder.decode(
-                APIResponse<LeaderboardPage>.self, from: data
+            let decoded = try await APIClient.shared.get(
+                "/api/checkins/leaderboard",
+                decode: APIResponse<LeaderboardPage>.self
             )
             topUsers = decoded.data.topUsers
             entries = decoded.data.results

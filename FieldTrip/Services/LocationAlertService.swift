@@ -21,7 +21,6 @@ final class LocationAlertService: NSObject, ObservableObject {
     private let manager = CLLocationManager()
     private var nearbyLocations: [NearbyLocation] = []
     private var lastFetchedFrom: CLLocation?
-    private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
     private let alertRadiusMiles: Double = 5.0
     private let cooldownInterval: TimeInterval = 24 * 60 * 60
     private let refreshDistanceMeters: CLLocationDistance = 1609 // ~1 mile

@@ -11,8 +11,6 @@ struct SettingsView: View {
     @State private var statusIsError = false
     @ObservedObject private var alerts = LocationAlertService.shared
 
-    private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
-
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
@@ -225,22 +223,9 @@ struct SettingsView: View {
         statusMessage = nil
         defer { isWorking = false }
 
-        guard let token = KeychainService.retrieve(for: .authToken),
-              let url = URL(string: "\(apiBaseURL)/api/account/clear-data") else {
-            setStatus("An error has occurred, please log in again.", isError: true)
-            return
-        }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
         do {
-            let (_, response) = try await URLSession.shared.data(for: request)
-            if let http = response as? HTTPURLResponse, http.statusCode == 200 {
-                setStatus("Your data has been cleared.", isError: false)
-            } else {
-                setStatus("An error has occurred, please log in again.", isError: true)
-            }
+            try await APIClient.shared.send("POST", "/api/account/clear-data")
+            setStatus("Your data has been cleared.", isError: false)
         } catch {
             setStatus("An error has occurred, please log in again.", isError: true)
         }
@@ -251,23 +236,10 @@ struct SettingsView: View {
         statusMessage = nil
         defer { isWorking = false }
 
-        guard let token = KeychainService.retrieve(for: .authToken),
-              let url = URL(string: "\(apiBaseURL)/api/account") else {
-            setStatus("An error has occurred, please log in again.", isError: true)
-            return
-        }
-        var request = URLRequest(url: url)
-        request.httpMethod = "DELETE"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
         do {
-            let (_, response) = try await URLSession.shared.data(for: request)
-            if let http = response as? HTTPURLResponse, http.statusCode == 200 {
-                wipeLocalUserData()
-                try? AuthService.shared.signOut()
-            } else {
-                setStatus("An error has occurred, please log in again.", isError: true)
-            }
+            try await APIClient.shared.send("DELETE", "/api/account")
+            wipeLocalUserData()
+            try? AuthService.shared.signOut()
         } catch {
             setStatus("An error has occurred, please log in again.", isError: true)
         }

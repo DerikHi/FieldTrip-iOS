@@ -5,8 +5,6 @@ struct PhotoOfTheWeekView: View {
     @State private var isLoading = true
     @State private var errorMessage: String?
 
-    private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
-
     var body: some View {
         Group {
             if isLoading {
@@ -76,18 +74,8 @@ struct PhotoOfTheWeekView: View {
         errorMessage = nil
         defer { isLoading = false }
 
-        guard let token = KeychainService.retrieve(for: .authToken),
-              let url = URL(string: "\(apiBaseURL)/api/photo-of-the-week") else {
-            errorMessage = "An error has occurred, please log in again."
-            return
-        }
-
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
         do {
-            let (data, _) = try await URLSession.shared.data(for: request)
-            let decoded = try JSONDecoder.apiDecoder.decode(APIResponse<PhotoOfTheWeekResponse>.self, from: data)
+            let decoded = try await APIClient.shared.get("/api/photo-of-the-week", decode: APIResponse<PhotoOfTheWeekResponse>.self)
             photo = decoded.data.photo
         } catch {
             errorMessage = "An error has occurred, please log in again."

@@ -13,8 +13,6 @@ struct NearbyBathroomsView: View {
     @State private var errorMessage: String?
     @State private var needsLocationPermission = false
 
-    private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
-
     /// Facility types eligible for the bathroom-quality list.
     private let allowedFacilityTypes: Set<String> = [
         "Restaurants",
@@ -179,16 +177,15 @@ struct NearbyBathroomsView: View {
             return
         }
 
-        guard let token = KeychainService.retrieve(for: .authToken),
-              let url = URL(string: "\(apiBaseURL)/api/locations/nearby?lat=\(location.coordinate.latitude)&lng=\(location.coordinate.longitude)&radius=5") else {
-            errorMessage = "An error has occurred, please log in again."
-            return
-        }
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
         do {
-            let (data, _) = try await URLSession.shared.data(for: request)
+            let data = try await APIClient.shared.data(
+                "GET", "/api/locations/nearby",
+                query: [
+                    URLQueryItem(name: "lat", value: String(location.coordinate.latitude)),
+                    URLQueryItem(name: "lng", value: String(location.coordinate.longitude)),
+                    URLQueryItem(name: "radius", value: "5"),
+                ]
+            )
             let decoded = try JSONDecoder().decode(NearbyResponse.self, from: data)
             results = decoded.data.results
         } catch {

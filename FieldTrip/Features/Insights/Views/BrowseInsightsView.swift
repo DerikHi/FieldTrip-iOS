@@ -248,14 +248,6 @@ struct BrowseInsightsView: View {
         errorMessage = nil
         defer { isLoading = false }
 
-        guard let token = KeychainService.retrieve(for: .authToken) else {
-            errorMessage = "An error has occurred, please log in again."
-            return
-        }
-
-        let baseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
-
-        var components = URLComponents(string: "\(baseURL)/api/search")!
         var queryItems: [URLQueryItem] = []
 
         if hasText {
@@ -280,27 +272,8 @@ struct BrowseInsightsView: View {
             queryItems.append(URLQueryItem(name: "lng", value: String(lng)))
         }
 
-        components.queryItems = queryItems
-        guard let url = components.url else {
-            errorMessage = "Invalid search."
-            return
-        }
-
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            let http = response as! HTTPURLResponse
-
-            guard http.statusCode == 200 else {
-                errorMessage = "An error has occurred, please log in again."
-                return
-            }
-
-            let decoded = try JSONDecoder.apiDecoder.decode(
-                APIResponse<BrowseSearchResult>.self, from: data
-            )
+            let decoded = try await APIClient.shared.get("/api/search", query: queryItems, decode: APIResponse<BrowseSearchResult>.self)
             results = decoded.data.results
         } catch {
             errorMessage = "An error has occurred, please log in again."
@@ -484,8 +457,6 @@ struct LocationDetailView: View {
     @State private var isCheckingIn = false
     @State private var showMapChoice = false
     @State private var fullScreenPhotoURL: URL?
-
-    private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
 
     var body: some View {
         Group {
@@ -712,11 +683,10 @@ struct LocationDetailView: View {
     }
 
     private func loadCheckInCount() async {
-        guard let token = KeychainService.retrieve(for: .authToken),
-              let url = URL(string: "\(apiBaseURL)/api/checkins?locationId=\(locationId)") else { return }
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        guard let (data, _) = try? await URLSession.shared.data(for: request),
+        guard let data = try? await APIClient.shared.data(
+                "GET", "/api/checkins",
+                query: [URLQueryItem(name: "locationId", value: locationId)]
+              ),
               let decoded = try? JSONDecoder.apiDecoder.decode(APIResponse<CheckInCountResponse>.self, from: data) else { return }
         checkInCount = decoded.data.count
     }
@@ -725,16 +695,11 @@ struct LocationDetailView: View {
         isCheckingIn = true
         defer { isCheckingIn = false }
 
-        guard let token = KeychainService.retrieve(for: .authToken),
-              let url = URL(string: "\(apiBaseURL)/api/checkins") else { return }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.httpBody = try? JSONEncoder().encode(["locationId": locationId])
-
-        guard let (data, _) = try? await URLSession.shared.data(for: request),
-              let decoded = try? JSONDecoder.apiDecoder.decode(APIResponse<CheckInResponse>.self, from: data) else { return }
+        guard let decoded = try? await APIClient.shared.send(
+                "POST", "/api/checkins",
+                json: ["locationId": locationId],
+                decode: APIResponse<CheckInResponse>.self
+              ) else { return }
         checkInCount = decoded.data.count
     }
 
@@ -756,24 +721,11 @@ struct LocationDetailView: View {
         isLoading = true
         defer { isLoading = false }
 
-        guard let token = KeychainService.retrieve(for: .authToken) else {
-            errorMessage = "An error has occurred, please log in again."
-            return
-        }
-
-        guard let url = URL(string: "\(apiBaseURL)/api/insights?locationId=\(locationId)") else { return }
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            let http = response as! HTTPURLResponse
-            guard http.statusCode == 200 else {
-                errorMessage = "An error has occurred, please log in again."
-                return
-            }
-            let decoded = try JSONDecoder.apiDecoder.decode(
-                APIResponse<LocationInsightsPage>.self, from: data
+            let decoded = try await APIClient.shared.get(
+                "/api/insights",
+                query: [URLQueryItem(name: "locationId", value: locationId)],
+                decode: APIResponse<LocationInsightsPage>.self
             )
             insights = decoded.data.insights
         } catch {
