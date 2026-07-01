@@ -28,7 +28,6 @@ final class SearchViewModel: ObservableObject {
 
     private let locationManager = CLLocationManager()
     private var searchDebounceTask: Task<Void, Never>?
-    private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
 
     struct SearchResult: Identifiable, Decodable {
         let locationId: String
@@ -89,7 +88,6 @@ final class SearchViewModel: ObservableObject {
         errorMessage = nil
         defer { isLoading = false }
 
-        var components = URLComponents(string: "\(apiBaseURL)/api/search")!
         var queryItems: [URLQueryItem] = [
             URLQueryItem(name: "radiusMiles", value: String(radiusMiles)),
             URLQueryItem(name: "limit", value: "50"),
@@ -129,16 +127,8 @@ final class SearchViewModel: ObservableObject {
             }
         }
 
-        components.queryItems = queryItems
-        guard let url = components.url else { return }
-
-        let token = KeychainService.retrieve(for: .authToken) ?? ""
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
         do {
-            let (data, _) = try await URLSession.shared.data(for: request)
-            let response = try JSONDecoder.apiDecoder.decode(SearchResponse.self, from: data)
+            let response = try await APIClient.shared.get("/api/search", query: queryItems, decode: SearchResponse.self)
             results = response.data.results
             updateMapRegion()
         } catch {
@@ -159,15 +149,15 @@ final class SearchViewModel: ObservableObject {
         let lat = location.coordinate.latitude
         let lng = location.coordinate.longitude
 
-        guard let url = URL(string: "\(apiBaseURL)/api/search?lat=\(lat)&lng=\(lng)&radiusMiles=25&limit=20") else { return }
-
-        let token = KeychainService.retrieve(for: .authToken) ?? ""
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let query: [URLQueryItem] = [
+            URLQueryItem(name: "lat", value: String(lat)),
+            URLQueryItem(name: "lng", value: String(lng)),
+            URLQueryItem(name: "radiusMiles", value: "25"),
+            URLQueryItem(name: "limit", value: "20"),
+        ]
 
         do {
-            let (data, _) = try await URLSession.shared.data(for: request)
-            let response = try JSONDecoder.apiDecoder.decode(SearchResponse.self, from: data)
+            let response = try await APIClient.shared.get("/api/search", query: query, decode: SearchResponse.self)
             nearMeResults = response.data.results
             mapRegion = MKCoordinateRegion(
                 center: location.coordinate,
@@ -202,14 +192,8 @@ final class SearchViewModel: ObservableObject {
     }
 
     private func loadFacilityTypes() async {
-        guard let url = URL(string: "\(apiBaseURL)/api/categories") else { return }
-        let token = KeychainService.retrieve(for: .authToken) ?? ""
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
         do {
-            let (data, _) = try await URLSession.shared.data(for: request)
-            let response = try JSONDecoder.apiDecoder.decode(APIResponse<CategoriesResponse>.self, from: data)
+            let response = try await APIClient.shared.get("/api/categories", decode: APIResponse<CategoriesResponse>.self)
             facilityTypes = response.data.facilityTypes
         } catch {}
     }

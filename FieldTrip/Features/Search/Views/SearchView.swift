@@ -276,8 +276,6 @@ struct InsightDetailView: View {
     @State private var insights: [Insight] = []
     @State private var isLoading = true
 
-    private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
-
     var body: some View {
         Group {
             if isLoading {
@@ -300,13 +298,11 @@ struct InsightDetailView: View {
         isLoading = true
         defer { isLoading = false }
 
-        guard let url = URL(string: "\(apiBaseURL)/api/insights?locationId=\(locationId)") else { return }
-        let token = KeychainService.retrieve(for: .authToken) ?? ""
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
         do {
-            let (data, _) = try await URLSession.shared.data(for: request)
+            _ = try await APIClient.shared.data(
+                "GET", "/api/insights",
+                query: [URLQueryItem(name: "locationId", value: locationId)]
+            )
             // TODO: parse insights response
         } catch {}
     }

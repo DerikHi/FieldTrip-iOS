@@ -52,7 +52,6 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
 
     private let locationManager = CLLocationManager()
     private let networkMonitor = NWPathMonitor()
-    private let apiBaseURL = ProcessInfo.processInfo.environment["API_URL"] ?? "https://backend-nine-kappa-58.vercel.app"
     private var userRequestedLocation = false
 
     override init() {
@@ -272,9 +271,8 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
         }
 
         do {
-            let token = KeychainService.retrieve(for: .authToken) ?? ""
-            let insightId = try await submitInsight(token: token)
-            await uploadPendingPhotos(insightId: insightId, token: token)
+            let insightId = try await submitInsight()
+            await uploadPendingPhotos(insightId: insightId)
             isSuccess = true
         } catch {
             errorMessage = "We couldn't reach the server, so your entry has been saved offline. It will sync automatically the next time you're online."
@@ -301,16 +299,7 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
         return nil
     }
 
-    private func submitInsight(token: String) async throws -> String {
-        guard let url = URL(string: "\(apiBaseURL)/api/insights") else {
-            throw URLError(.badURL)
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
+    private func submitInsight() async throws -> String {
         var body: [String: Any] = [
             "latitude": draft.latitude!,
             "longitude": draft.longitude!,
@@ -340,15 +329,7 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
             body["placeType"] = placeType
         }
 
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        if let http = response as? HTTPURLResponse, http.statusCode >= 400 {
-            let errorBody = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw NSError(domain: "InsightAPI", code: http.statusCode, userInfo: [NSLocalizedDescriptionKey: errorBody])
-        }
-
-        let decoded = try JSONDecoder.apiDecoder.decode(APIResponse<InsightIDResponse>.self, from: data)
+        let decoded = try await APIClient.shared.send("POST", "/api/insights", json: body, decode: APIResponse<InsightIDResponse>.self)
         return decoded.data.id
     }
 
@@ -356,27 +337,22 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
         let id: String
     }
 
-    private func uploadPendingPhotos(insightId: String, token: String) async {
-        guard let url = URL(string: "\(apiBaseURL)/api/upload") else { return }
-
+    private func uploadPendingPhotos(insightId: String) async {
         for (i, wrapper) in draft.photos.enumerated() {
             guard !wrapper.uploaded, let jpeg = wrapper.image.jpegData(compressionQuality: 0.7) else { continue }
 
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
             let boundary = UUID().uuidString
-            request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-
             var body = Data()
             body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"insightId\"\r\n\r\n\(insightId)\r\n".data(using: .utf8)!)
             body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"photo_\(i).jpg\"\r\nContent-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
             body.append(jpeg)
             body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
-            request.httpBody = body
 
-            _ = try? await URLSession.shared.data(for: request)
+            _ = try? await APIClient.shared.data(
+                "POST", "/api/upload",
+                body: body,
+                contentType: "multipart/form-data; boundary=\(boundary)"
+            )
             draft.photos[i].uploaded = true
         }
     }
@@ -427,7 +403,6 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
         var queue = loadOfflineQueue()
         guard !queue.isEmpty else { return }
 
-        let token = KeychainService.retrieve(for: .authToken) ?? ""
         var synced: Set<UUID> = []
 
         for item in queue {
@@ -446,7 +421,7 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
                 return entry
             }
 
-            if let _ = try? await submitInsight(token: token) {
+            if let _ = try? await submitInsight() {
                 synced.insert(item.id)
             }
         }
@@ -467,14 +442,8 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
     private func loadCategories() async {
         facilityTypes = Self.fallbackFacilityTypes
 
-        guard let url = URL(string: "\(apiBaseURL)/api/categories") else { return }
-        let token = KeychainService.retrieve(for: .authToken) ?? ""
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
         do {
-            let (data, _) = try await URLSession.shared.data(for: request)
-            let response = try JSONDecoder.apiDecoder.decode(APIResponse<CategoriesResponse>.self, from: data)
+            let response = try await APIClient.shared.get("/api/categories", decode: APIResponse<CategoriesResponse>.self)
             featureCategories = response.data.featureCategories
         } catch {
             // API unavailable or returned unexpected format
