@@ -50,16 +50,18 @@ enum BiometricService {
         }
     }
 
-    /// Whether the user has opted into biometric login and saved credentials.
+    /// Whether the user has opted into biometric login. This reads only the
+    /// enablement flag — never the protected credentials — so checking it does
+    /// not trigger a biometric prompt.
     static var isEnabled: Bool {
         UserDefaults.standard.bool(forKey: enabledKey)
-            && KeychainService.retrieve(for: .biometricEmail) != nil
-            && KeychainService.retrieve(for: .biometricPassword) != nil
     }
 
     static func enable(email: String, password: String) {
-        KeychainService.store(email, for: .biometricEmail)
-        KeychainService.store(password, for: .biometricPassword)
+        // Stored behind Secure Enclave biometric access control, so the raw
+        // password can't be read without a live Face ID / Touch ID match.
+        KeychainService.storeBiometricProtected(email, for: .biometricEmail)
+        KeychainService.storeBiometricProtected(password, for: .biometricPassword)
         UserDefaults.standard.set(true, forKey: enabledKey)
     }
 
@@ -72,11 +74,27 @@ enum BiometricService {
     /// Prompt the user for biometric auth and, on success, return saved credentials.
     static func authenticate(reason: String) async -> (email: String, password: String)? {
         let context = LAContext()
+        // Let the Keychain reads below reuse this successful evaluation instead
+        // of triggering a second biometric prompt.
+        context.touchIDAuthenticationAllowableReuseDuration = LATouchIDAuthenticationMaximumAllowableReuseDuration
         do {
             let ok = try await context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason)
+            // Reuse the just-authenticated context so the Keychain reads don't
+            // prompt a second time.
             guard ok,
-                  let email = KeychainService.retrieve(for: .biometricEmail),
-                  let password = KeychainService.retrieve(for: .biometricPassword) else { return nil }
+                  let email = KeychainService.retrieve(for: .biometricEmail, context: context),
+                  let password = KeychainService.retrieve(for: .biometricPassword, context: context) else {
+                // Biometry succeeded but the stored credentials are gone or
+                // were invalidated (e.g. Face ID / Touch ID was re-enrolled).
+                // Clear the stale enablement so the UI stops offering it.
+                disable()
+                return nil
+            }
+            // Upgrade credentials saved by an older build (stored without
+            // Secure Enclave access control) to protected storage. Idempotent
+            // for already-protected items; the write does not prompt.
+            KeychainService.storeBiometricProtected(email, for: .biometricEmail)
+            KeychainService.storeBiometricProtected(password, for: .biometricPassword)
             return (email, password)
         } catch {
             return nil
