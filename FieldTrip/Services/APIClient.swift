@@ -1,5 +1,6 @@
 import Foundation
 import FirebaseAuth
+import FirebaseAppCheck
 
 /// Errors surfaced by `APIClient`. `errorDescription` is user-presentable.
 enum APIError: LocalizedError {
@@ -44,6 +45,19 @@ struct APIClient {
         return "Bearer \(token)"
     }
 
+    /// A current App Check token, proving the request comes from a genuine app
+    /// instance. Best-effort: returns nil if attestation is unavailable so a
+    /// transient App Check failure never blocks a request the client makes. The
+    /// backend decides whether a missing token is acceptable (monitor) or not
+    /// (enforce).
+    private func appCheckToken() async -> String? {
+        do {
+            return try await AppCheck.appCheck().token(forcingRefresh: false).token
+        } catch {
+            return nil
+        }
+    }
+
     // MARK: - Low-level
 
     /// Performs a request and returns the raw body. Throws `APIError.http` for
@@ -65,6 +79,11 @@ struct APIClient {
         request.httpMethod = method
         if requiresAuth {
             request.setValue(try await authorizationHeader(), forHTTPHeaderField: "Authorization")
+        }
+        // App Check attests the app instance itself (independent of the user),
+        // so attach it to every backend request.
+        if let appCheck = await appCheckToken() {
+            request.setValue(appCheck, forHTTPHeaderField: "X-Firebase-AppCheck")
         }
         if let contentType { request.setValue(contentType, forHTTPHeaderField: "Content-Type") }
         request.httpBody = body
