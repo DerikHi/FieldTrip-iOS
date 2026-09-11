@@ -22,6 +22,9 @@ struct BrowseInsightsView: View {
     @State private var facilityTypes: [FacilityType] = []
     @State private var selectedFacilityTypeId: String?
 
+    // Nationwide map of all locations
+    @State private var showMap = false
+
     private var hasCoordinates: Bool {
         searchLatitude != nil && searchLongitude != nil
     }
@@ -59,6 +62,16 @@ struct BrowseInsightsView: View {
             }
 
             VStack(spacing: 12) {
+                Button {
+                    showMap = true
+                } label: {
+                    Label("View Locations Map", systemImage: "map")
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.horizontal)
+                .padding(.top, 8)
+
                 if !facilityTypes.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Type")
@@ -187,6 +200,9 @@ struct BrowseInsightsView: View {
             }
         }
         .navigationTitle("Browse All")
+        .fullScreenCover(isPresented: $showMap) {
+            LocationsMapView()
+        }
         .task { await loadFacilityTypes() }
         .onChange(of: radiusMiles) { _, _ in
             if hasSearched {
@@ -449,6 +465,10 @@ struct LocationDetailView: View {
     let locationName: String?
     let latitude: Double
     let longitude: Double
+    /// Extra location records that describe the same physical place (from the
+    /// map's deduplication). Their reviews are merged in alongside
+    /// `locationId`. Defaults to empty, so existing callers are unaffected.
+    var additionalLocationIds: [String] = []
 
     @State private var insights: [LocationInsight] = []
     @State private var isLoading = true
@@ -721,13 +741,27 @@ struct LocationDetailView: View {
         isLoading = true
         defer { isLoading = false }
 
+        // Merge reviews across every record for this place (the primary plus
+        // any duplicates the map grouped in), newest first, de-duped by id.
+        var ids = [locationId]
+        for id in additionalLocationIds where !ids.contains(id) {
+            ids.append(id)
+        }
+
         do {
-            let decoded = try await APIClient.shared.get(
-                "/api/insights",
-                query: [URLQueryItem(name: "locationId", value: locationId)],
-                decode: APIResponse<LocationInsightsPage>.self
-            )
-            insights = decoded.data.insights
+            var merged: [LocationInsight] = []
+            for id in ids {
+                let decoded = try await APIClient.shared.get(
+                    "/api/insights",
+                    query: [URLQueryItem(name: "locationId", value: id)],
+                    decode: APIResponse<LocationInsightsPage>.self
+                )
+                merged.append(contentsOf: decoded.data.insights)
+            }
+            var seen = Set<String>()
+            insights = merged
+                .filter { seen.insert($0.id).inserted }
+                .sorted { $0.createdAt > $1.createdAt }
         } catch {
             errorMessage = "An error has occurred, please log in again."
         }
