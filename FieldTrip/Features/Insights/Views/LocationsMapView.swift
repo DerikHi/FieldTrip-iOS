@@ -9,7 +9,14 @@ import CoreLocation
 /// so the user can zoom in on a single spot. Tapping a pin opens that
 /// location's reviews (merged across any duplicate records that share the same
 /// name and town).
+///
+/// When the caller passes a `facilityType`, only locations of that type are
+/// fetched and pinned, so the map matches whatever the Browse screen's Type
+/// picker is set to.
 struct LocationsMapView: View {
+    /// Type filter inherited from the caller; `nil` shows every type.
+    var facilityType: FacilityType?
+
     @Environment(\.dismiss) private var dismiss
 
     @State private var locations: [MapLocation] = []
@@ -49,8 +56,11 @@ struct LocationsMapView: View {
                     ContentUnavailableView("Couldn't load the map", systemImage: "exclamationmark.triangle", description: Text(errorMessage))
                         .background(.ultraThinMaterial)
                 } else if locations.isEmpty {
-                    ContentUnavailableView("No locations yet", systemImage: "mappin.slash")
-                        .background(.ultraThinMaterial)
+                    ContentUnavailableView(
+                        facilityType == nil ? "No locations yet" : "No \(facilityType!.name) yet",
+                        systemImage: "mappin.slash"
+                    )
+                    .background(.ultraThinMaterial)
                 }
 
                 if !isLoading && errorMessage == nil && !locations.isEmpty {
@@ -65,7 +75,7 @@ struct LocationsMapView: View {
                     }
                 }
             }
-            .navigationTitle("All Locations")
+            .navigationTitle(facilityType?.name ?? "All Locations")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -88,9 +98,16 @@ struct LocationsMapView: View {
     private func load() async {
         isLoading = true
         defer { isLoading = false }
+
+        var queryItems: [URLQueryItem] = []
+        if let facilityType {
+            queryItems.append(facilityType.filterQueryItem)
+        }
+
         do {
             let decoded = try await APIClient.shared.get(
                 "/api/locations/map",
+                query: queryItems,
                 decode: APIResponse<MapLocationsResult>.self
             )
             locations = decoded.data.results

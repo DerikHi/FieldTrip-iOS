@@ -9,6 +9,15 @@ struct FacilityType: Identifiable, Codable, Hashable {
     let category: String // "facility" | "natural_space"
     let icon: String?
     let description: String?
+
+    /// The query item that narrows an API request to this type. Types that came
+    /// from the app's bundled fallback list carry local `fb-` ids the server
+    /// doesn't recognize, so those have to filter by name instead.
+    var filterQueryItem: URLQueryItem {
+        id.hasPrefix("fb-")
+            ? URLQueryItem(name: "facilityTypeName", value: name)
+            : URLQueryItem(name: "facilityTypeId", value: id)
+    }
 }
 
 struct FeatureCategory: Identifiable, Codable, Hashable {

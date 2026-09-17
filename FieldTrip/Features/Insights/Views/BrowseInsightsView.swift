@@ -29,6 +29,11 @@ struct BrowseInsightsView: View {
         searchLatitude != nil && searchLongitude != nil
     }
 
+    private var selectedFacilityType: FacilityType? {
+        guard let selectedFacilityTypeId else { return nil }
+        return facilityTypes.first { $0.id == selectedFacilityTypeId }
+    }
+
     private struct LocationGroup {
         let key: String
         let locations: [BrowseLocation]
@@ -62,16 +67,6 @@ struct BrowseInsightsView: View {
             }
 
             VStack(spacing: 12) {
-                Button {
-                    showMap = true
-                } label: {
-                    Label("View Locations Map", systemImage: "map")
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                }
-                .buttonStyle(.borderedProminent)
-                .padding(.horizontal)
-                .padding(.top, 8)
-
                 if !facilityTypes.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Type")
@@ -94,6 +89,20 @@ struct BrowseInsightsView: View {
                     .padding(.horizontal)
                 }
 
+                Button {
+                    showMap = true
+                } label: {
+                    Label("View Locations Map", systemImage: "map")
+                        .frame(maxWidth: .infinity, minHeight: 32)
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.horizontal)
+
+                Text("or")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+
                 // Search by name or town
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Search by name or town")
@@ -106,7 +115,6 @@ struct BrowseInsightsView: View {
                         .cornerRadius(10)
                 }
                 .padding(.horizontal)
-                .padding(.top, 8)
 
                 Text("or")
                     .font(.subheadline)
@@ -119,7 +127,7 @@ struct BrowseInsightsView: View {
                             isGettingLocation ? "Getting location…" : "Use Current GPS Location",
                             systemImage: "location.fill"
                         )
-                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .frame(maxWidth: .infinity, minHeight: 32)
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(isGettingLocation)
@@ -139,6 +147,9 @@ struct BrowseInsightsView: View {
                 }
                 .padding(.horizontal)
 
+                Divider()
+                    .padding(.horizontal)
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Search radius: \(Int(radiusMiles)) \(Int(radiusMiles) == 1 ? "mile" : "miles")")
                         .font(.subheadline.bold())
@@ -148,6 +159,7 @@ struct BrowseInsightsView: View {
 
                 Divider()
             }
+            .padding(.top, 8)
 
             if isLoading {
                 ProgressView()
@@ -201,7 +213,7 @@ struct BrowseInsightsView: View {
         }
         .navigationTitle("Browse All")
         .fullScreenCover(isPresented: $showMap) {
-            LocationsMapView()
+            LocationsMapView(facilityType: selectedFacilityType)
         }
         .task { await loadFacilityTypes() }
         .onChange(of: radiusMiles) { _, _ in
@@ -272,15 +284,8 @@ struct BrowseInsightsView: View {
 
         queryItems.append(URLQueryItem(name: "radiusMiles", value: String(Int(radiusMiles))))
 
-        if let facilityTypeId = selectedFacilityTypeId {
-            if facilityTypeId.hasPrefix("fb-") {
-                let name = facilityTypes.first(where: { $0.id == facilityTypeId })?.name ?? ""
-                if !name.isEmpty {
-                    queryItems.append(URLQueryItem(name: "facilityTypeName", value: name))
-                }
-            } else {
-                queryItems.append(URLQueryItem(name: "facilityTypeId", value: facilityTypeId))
-            }
+        if let selectedFacilityType {
+            queryItems.append(selectedFacilityType.filterQueryItem)
         }
 
         if let lat = searchLatitude, let lng = searchLongitude {
