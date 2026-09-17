@@ -89,6 +89,11 @@ struct BrowseInsightsView: View {
                     .padding(.horizontal)
                 }
 
+                Text("then")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+
                 Button {
                     showMap = true
                 } label: {
