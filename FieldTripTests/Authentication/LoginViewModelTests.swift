@@ -1,4 +1,5 @@
 import XCTest
+import FirebaseAuth
 @testable import FieldTrip
 
 // MARK: - Mock AuthService
@@ -11,9 +12,7 @@ final class MockAuthService: AuthServiceProtocol {
     var emailVerificationSent = false
     var reloadResult: Bool = false
 
-    var currentFirebaseUser: (any Any)? { nil } // simplified
-
-    var firebaseUser: (any Any)? { nil }
+    var currentFirebaseUser: User? { nil }
 
     func signIn(email: String, password: String) async throws -> AuthUser {
         switch signInResult {
@@ -43,15 +42,6 @@ final class MockAuthService: AuthServiceProtocol {
     func reloadUser() async throws -> Bool {
         return reloadResult
     }
-}
-
-extension MockAuthService {
-    var currentFirebaseUserProtocol: (any Any)? { nil }
-}
-
-// We need a concrete conformance — let's extend the protocol
-extension MockAuthService: @retroactive AuthServiceProtocol {
-    // Already implemented above
 }
 
 final class LoginViewModelTests: XCTestCase {
