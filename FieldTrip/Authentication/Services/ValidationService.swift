@@ -97,6 +97,6 @@ enum ValidationService {
     // MARK: - Comment
 
     static func isValidComment(_ comment: String) -> Bool {
-        comment.count <= 125
+        comment.count <= 250
     }
 }

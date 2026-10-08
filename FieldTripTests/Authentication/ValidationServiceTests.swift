@@ -123,7 +123,7 @@ final class ValidationServiceTests: XCTestCase {
 
     func testCommentValidation() {
         XCTAssertTrue(ValidationService.isValidComment(""))
-        XCTAssertTrue(ValidationService.isValidComment(String(repeating: "a", count: 125)))
-        XCTAssertFalse(ValidationService.isValidComment(String(repeating: "a", count: 126)))
+        XCTAssertTrue(ValidationService.isValidComment(String(repeating: "a", count: 250)))
+        XCTAssertFalse(ValidationService.isValidComment(String(repeating: "a", count: 251)))
     }
 }

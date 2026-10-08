@@ -378,14 +378,14 @@ struct CommentStepView: View {
                             .cornerRadius(10)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 10)
-                                    .stroke(vm.draft.comment.count > 125 ? Color.red : Color.clear, lineWidth: 1.5)
+                                    .stroke(vm.draft.comment.count > 250 ? Color.red : Color.clear, lineWidth: 1.5)
                             )
 
                         HStack {
                             Spacer()
-                            Text("\(vm.draft.comment.count)/125")
+                            Text("\(vm.draft.comment.count)/250")
                                 .font(.caption)
-                                .foregroundStyle(vm.draft.comment.count > 125 ? .red : .secondary)
+                                .foregroundStyle(vm.draft.comment.count > 250 ? .red : .secondary)
                         }
                     }
                     .id("commentField")
