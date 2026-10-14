@@ -216,6 +216,11 @@ struct BrowseInsightsView: View {
                                                 .font(.caption)
                                                 .foregroundStyle(.secondary)
                                         }
+                                        if let latestDate = group.locations.compactMap(\.reviewDate).max() {
+                                            Text(latestDate, style: .date)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
                                     }
                                     Spacer()
                                     Text("\(group.locations.count) entries")
@@ -426,6 +431,11 @@ struct BrowseCardContent: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                    if let reviewDate = location.reviewDate {
+                        Text(reviewDate, style: .date)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 Spacer()
                 if let facilityType = location.facilityTypeName {
@@ -519,6 +529,8 @@ struct BrowseLocation: Decodable, Identifiable {
     let reviewerName: String?
     let facilityTypeName: String?
     let comment: String?
+    /// Date of the review shown on the card; the edit date if it was edited
+    let reviewDate: Date?
     let attributeRatings: [BrowseAttributeRating]?
 
     var id: String { locationId }
@@ -668,7 +680,7 @@ struct LocationDetailView: View {
                                             .foregroundStyle(.secondary)
                                     }
 
-                                    Text(insight.createdAt, style: .date)
+                                    Text(insight.displayDate, style: .date)
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
@@ -833,7 +845,7 @@ struct LocationDetailView: View {
             var seen = Set<String>()
             insights = merged
                 .filter { seen.insert($0.id).inserted }
-                .sorted { $0.createdAt > $1.createdAt }
+                .sorted { $0.displayDate > $1.displayDate }
         } catch {
             errorMessage = "An error has occurred, please log in again."
         }
@@ -852,9 +864,13 @@ private struct LocationInsight: Decodable, Identifiable {
     let placeType: String?
     let starRating: Int?
     let createdAt: Date
+    let updatedAt: Date?
     let attributeRatings: [LocationAttributeRating]?
     let photos: [LocationPhoto]?
     let user: LocationUser?
+
+    /// Edit date if the review was edited, otherwise when it was created
+    var displayDate: Date { updatedAt ?? createdAt }
 }
 
 private struct LocationAttributeRating: Decodable {

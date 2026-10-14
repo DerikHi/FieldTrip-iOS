@@ -1,4 +1,5 @@
 import SwiftUI
+import MapKit
 
 struct PhotoOfTheWeekView: View {
     @State private var photo: PhotoOfTheWeekModel?
@@ -34,6 +35,25 @@ struct PhotoOfTheWeekView: View {
                         Text(photo.submittedByUserName)
                             .font(.title3.weight(.semibold))
                             .frame(maxWidth: .infinity, alignment: .center)
+
+                        if let locationName = photo.locationName, !locationName.isEmpty {
+                            Text(locationName)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                        }
+
+                        if let coordinate = photo.coordinate {
+                            Map(initialPosition: .region(MKCoordinateRegion(
+                                center: coordinate,
+                                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+                            )), interactionModes: []) {
+                                Marker(photo.locationName ?? "Location", coordinate: coordinate)
+                            }
+                            .frame(height: 200)
+                            .cornerRadius(10)
+                        }
 
                         if let description = photo.description?
                             .trimmingCharacters(in: .whitespacesAndNewlines),
@@ -92,6 +112,14 @@ struct PhotoOfTheWeekModel: Decodable {
     let photoUrl: String
     let submittedByUserName: String
     let locationName: String?
+    let latitude: Double?
+    let longitude: Double?
     let selectedAt: Date
     let description: String?
+
+    /// Nil for older selections saved without a location
+    var coordinate: CLLocationCoordinate2D? {
+        guard let latitude, let longitude else { return nil }
+        return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    }
 }

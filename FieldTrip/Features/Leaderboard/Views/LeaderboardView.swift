@@ -107,7 +107,7 @@ struct LeaderboardView: View {
                 .listStyle(.plain)
             }
         }
-        .navigationTitle("Check In Leaderboard")
+        .navigationTitle("Check Ins")
         .task { await loadLeaderboard() }
     }
 

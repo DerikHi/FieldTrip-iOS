@@ -93,7 +93,7 @@ struct MyInsightsView: View {
                                             }
                                         }
 
-                                        Text(entry.createdAt, style: .date)
+                                        Text(entry.displayDate, style: .date)
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
@@ -483,11 +483,15 @@ struct MyEntry: Decodable, Identifiable {
     let placeType: String?
     let starRating: Int?
     let createdAt: Date
+    let updatedAt: Date?
     let location: MyEntryLocation
     let attributeRatings: [MyEntryAttribute]?
     let photos: [MyEntryPhoto]?
 
     var locationId: String { location.id }
+
+    /// Edit date if the entry was edited, otherwise when it was created
+    var displayDate: Date { updatedAt ?? createdAt }
     var locationName: String? { location.name }
 }
 

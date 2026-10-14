@@ -317,7 +317,7 @@ struct InsightCardView: View {
                 Text(insight.user.fullName)
                     .font(.subheadline.bold())
                 Spacer()
-                Text(insight.createdAt, style: .relative)
+                Text(insight.updatedAt, style: .relative)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
