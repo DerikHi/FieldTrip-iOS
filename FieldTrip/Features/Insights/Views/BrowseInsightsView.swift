@@ -25,6 +25,10 @@ struct BrowseInsightsView: View {
     // Nationwide map of all locations
     @State private var showMap = false
 
+    // Collapses the search controls into a one-line summary once results arrive
+    @State private var isControlsCollapsed = false
+    @State private var appliedSearchSummary = ""
+
     private var hasCoordinates: Bool {
         searchLatitude != nil && searchLongitude != nil
     }
@@ -66,105 +70,118 @@ struct BrowseInsightsView: View {
                 .padding()
             }
 
-            VStack(spacing: 12) {
-                if !facilityTypes.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Type")
-                            .font(.subheadline.bold())
-                        Picker("Select a type", selection: Binding(
-                            get: { selectedFacilityTypeId ?? "" },
-                            set: { selectedFacilityTypeId = $0.isEmpty ? nil : $0 }
-                        )) {
-                            Text("All").tag("")
-                            ForEach(facilityTypes) { type in
-                                Text(type.name).tag(type.id)
+            if isControlsCollapsed {
+                searchSummaryBar
+            } else {
+                VStack(spacing: 12) {
+                    if !facilityTypes.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Type")
+                                .font(.subheadline.bold())
+                            Picker("Select a type", selection: Binding(
+                                get: { selectedFacilityTypeId ?? "" },
+                                set: { selectedFacilityTypeId = $0.isEmpty ? nil : $0 }
+                            )) {
+                                Text("All").tag("")
+                                ForEach(facilityTypes) { type in
+                                    Text(type.name).tag(type.id)
+                                }
                             }
+                            .pickerStyle(.menu)
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(.secondarySystemBackground))
+                            .cornerRadius(10)
                         }
-                        .pickerStyle(.menu)
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(.secondarySystemBackground))
-                        .cornerRadius(10)
+                        .padding(.horizontal)
                     }
-                    .padding(.horizontal)
-                }
 
-                Text("then")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                    Text("then")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
 
-                Button {
-                    showMap = true
-                } label: {
-                    Label("View Locations Map", systemImage: "map")
-                        .frame(maxWidth: .infinity, minHeight: 32)
-                }
-                .buttonStyle(.borderedProminent)
-                .padding(.horizontal)
-
-                Text("or")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-
-                // Search by name or town
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Search by name or town")
-                        .font(.subheadline.bold())
-                    TextField("e.g. Flying J or Springfield", text: $searchText)
-                        .submitLabel(.search)
-                        .onSubmit { Task { await search() } }
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .cornerRadius(10)
-                }
-                .padding(.horizontal)
-
-                Text("or")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-
-                VStack(spacing: 8) {
-                    Button(action: { requestLocation() }) {
-                        Label(
-                            isGettingLocation ? "Getting location…" : "Use Current GPS Location",
-                            systemImage: "location.fill"
-                        )
-                        .frame(maxWidth: .infinity, minHeight: 32)
+                    Button {
+                        showMap = true
+                    } label: {
+                        Label("View Locations Map", systemImage: "map")
+                            .frame(maxWidth: .infinity, minHeight: 32)
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(isGettingLocation)
+                    .padding(.horizontal)
 
-                    if hasCoordinates {
-                        HStack(spacing: 8) {
-                            Text(String(format: "📍 %.4f, %.4f", searchLatitude!, searchLongitude!))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .monospacedDigit()
-                            Button(action: { clearLocation() }) {
-                                Image(systemName: "xmark.circle.fill")
+                    Text("or")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+
+                    // Search by name or town
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Search by name or town")
+                            .font(.subheadline.bold())
+                        TextField("e.g. Flying J or Springfield", text: $searchText)
+                            .submitLabel(.search)
+                            .onSubmit { Task { await search(collapseOnResults: true) } }
+                            .padding()
+                            .background(Color(.secondarySystemBackground))
+                            .cornerRadius(10)
+                    }
+                    .padding(.horizontal)
+
+                    Text("or")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+
+                    VStack(spacing: 8) {
+                        Button(action: { requestLocation() }) {
+                            Label(
+                                isGettingLocation ? "Getting location…" : "Use Current GPS Location",
+                                systemImage: "location.fill"
+                            )
+                            .frame(maxWidth: .infinity, minHeight: 32)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(isGettingLocation)
+
+                        if hasCoordinates {
+                            HStack(spacing: 8) {
+                                Text(String(format: "📍 %.4f, %.4f", searchLatitude!, searchLongitude!))
+                                    .font(.caption)
                                     .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                                Button(action: { clearLocation() }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
                     }
-                }
-                .padding(.horizontal)
-
-                Divider()
                     .padding(.horizontal)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Search radius: \(Int(radiusMiles)) \(Int(radiusMiles) == 1 ? "mile" : "miles")")
-                        .font(.subheadline.bold())
-                    Slider(value: $radiusMiles, in: 1...100, step: 1)
-                }
-                .padding(.horizontal)
+                    Divider()
+                        .padding(.horizontal)
 
-                Divider()
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Search radius: \(Int(radiusMiles)) \(Int(radiusMiles) == 1 ? "mile" : "miles")")
+                            .font(.subheadline.bold())
+                        Slider(value: $radiusMiles, in: 1...100, step: 1)
+                    }
+                    .padding(.horizontal)
+
+                    if hasSearched && !results.isEmpty {
+                        Button {
+                            withAnimation { isControlsCollapsed = true }
+                        } label: {
+                            Label("Hide Search Options", systemImage: "chevron.up")
+                                .font(.subheadline)
+                        }
+                    }
+
+                    Divider()
+                }
+                .padding(.top, 8)
             }
-            .padding(.top, 8)
 
             if isLoading {
                 ProgressView()
@@ -236,7 +253,7 @@ struct BrowseInsightsView: View {
                 searchLatitude = lat
                 searchLongitude = lng
                 isGettingLocation = false
-                Task { await search() }
+                Task { await search(collapseOnResults: true) }
             }
         }
         .onChange(of: locationHelper.authStatus) { _, status in
@@ -244,6 +261,35 @@ struct BrowseInsightsView: View {
                 locationHelper.requestLocation()
             }
         }
+    }
+
+    private var searchSummaryBar: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "mappin.and.ellipse")
+                .foregroundStyle(.secondary)
+            Text(appliedSearchSummary)
+                .font(.subheadline)
+                .lineLimit(2)
+            Spacer(minLength: 8)
+            Button("Change") {
+                withAnimation { isControlsCollapsed = false }
+            }
+            .buttonStyle(.bordered)
+            .accessibilityHint("Shows the search options")
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 10)
+        .background(Color(.secondarySystemBackground))
+    }
+
+    /// e.g. "“Flying J” · 5 mi · Gas Stations" or "Current location · 1 mi · All types"
+    static func summary(text: String, usesCurrentLocation: Bool, radiusMiles: Int, facilityTypeName: String?) -> String {
+        var parts: [String] = []
+        if !text.isEmpty { parts.append("“\(text)”") }
+        if usesCurrentLocation { parts.append("Current location") }
+        parts.append("\(radiusMiles) mi")
+        parts.append(facilityTypeName ?? "All types")
+        return parts.joined(separator: " · ")
     }
 
     private func requestLocation() {
@@ -270,7 +316,9 @@ struct BrowseInsightsView: View {
         facilityTypes = InsightEntryViewModel.fallbackFacilityTypes
     }
 
-    private func search() async {
+    /// Runs the search. `collapseOnResults` is true for deliberate searches (submit / GPS) so the
+    /// controls collapse into the summary bar; radius and type tweaks leave the panel as it is.
+    private func search(collapseOnResults: Bool = false) async {
         let trimmedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         searchText = trimmedSearch
         let hasText = !trimmedSearch.isEmpty
@@ -280,6 +328,13 @@ struct BrowseInsightsView: View {
         hasSearched = true
         errorMessage = nil
         defer { isLoading = false }
+
+        appliedSearchSummary = Self.summary(
+            text: trimmedSearch,
+            usesCurrentLocation: hasCoordinates,
+            radiusMiles: Int(radiusMiles),
+            facilityTypeName: selectedFacilityType?.name
+        )
 
         var queryItems: [URLQueryItem] = []
 
@@ -301,8 +356,15 @@ struct BrowseInsightsView: View {
         do {
             let decoded = try await APIClient.shared.get("/api/search", query: queryItems, decode: APIResponse<BrowseSearchResult>.self)
             results = decoded.data.results
+            if results.isEmpty {
+                // Nothing found: keep the options visible so the user can adjust them
+                withAnimation { isControlsCollapsed = false }
+            } else if collapseOnResults {
+                withAnimation { isControlsCollapsed = true }
+            }
         } catch {
             errorMessage = "An error has occurred, please log in again."
+            withAnimation { isControlsCollapsed = false }
         }
     }
 }
