@@ -98,46 +98,17 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
         }
 
         let nextStep = Step.allCases[nextIndex]
-        if nextStep == .ratings && draft.attributeEntries.isEmpty {
-            let attrs = attributesForSelectedFacilityType()
-            draft.attributeEntries = attrs.map { AttributeEntry(name: $0) }
+        if nextStep == .ratings {
+            // Rebuild the rows if the type changed (e.g. Gas Station adds Air/Water), keeping chosen ratings
+            let expected = EntryAttributeCatalog.attributeNames(forFacilityTypeName: selectedFacilityTypeName)
+            if draft.attributeEntries.map(\.name) != expected {
+                draft.attributeEntries = EntryAttributeCatalog.entries(
+                    forFacilityTypeName: selectedFacilityTypeName,
+                    keeping: draft.attributeEntries
+                ).filter { expected.contains($0.name) }
+            }
         }
         currentStep = nextStep
-    }
-
-    private func attributesForSelectedFacilityType() -> [String] {
-        let name = facilityTypes.first(where: { $0.id == draft.facilityTypeId })?.name ?? ""
-        if name.localizedCaseInsensitiveContains("hotel") {
-            return Self.hotelAttributes
-        }
-        return Self.defaultAttributes
-    }
-
-    private static let hotelAttributes = [
-        "Clean Room", "Clean Bathroom", "Feels Safe", "Friendly Staff",
-        "Price", "Breakfast", "Gov Rate Available",
-        "Pet Friendly", "LGBTQ+ Friendly"
-    ]
-
-    private static let defaultAttributes = [
-        "Clean", "Clean Bathroom", "Feels Safe", "Friendly Staff",
-        "Price", "Food Options", "Pet Friendly", "LGBTQ+ Friendly"
-    ]
-
-    private func placeTypeForFacility(_ name: String) -> String {
-        switch name {
-        case "Hotels":
-            return "Hotel"
-        case "Restaurants", "Coffee Shops", "Breweries/Wineries", "Bakeries":
-            return "Restaurant"
-        case "Gas Stations", "Truck Stops", "EV Charging Stations",
-             "Grocery Stores", "Convenience Stores", "Pharmacies",
-             "Outdoor/Camping Supply Stores", "Laundromats",
-             "Hospitals/Urgent Care", "Pet Boarding/Vet Clinics", "Post Offices":
-            return "Convenience Store"
-        default:
-            return "Rest Area"
-        }
     }
 
     func goBack() {
@@ -320,7 +291,7 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
 
         if !draft.facilityTypeId.isEmpty {
             if draft.facilityTypeId.hasPrefix("fb-") {
-                body["placeType"] = placeTypeForFacility(selectedFacilityTypeName)
+                body["placeType"] = EntryAttributeCatalog.placeType(forFacilityTypeName: selectedFacilityTypeName)
                 body["facilityTypeName"] = selectedFacilityTypeName
             } else {
                 body["facilityTypeId"] = draft.facilityTypeId
@@ -338,21 +309,8 @@ final class InsightEntryViewModel: NSObject, ObservableObject {
     }
 
     private func uploadPendingPhotos(insightId: String) async {
-        for (i, wrapper) in draft.photos.enumerated() {
-            guard !wrapper.uploaded, let jpeg = wrapper.image.jpegData(compressionQuality: 0.7) else { continue }
-
-            let boundary = UUID().uuidString
-            var body = Data()
-            body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"insightId\"\r\n\r\n\(insightId)\r\n".data(using: .utf8)!)
-            body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"photo_\(i).jpg\"\r\nContent-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
-            body.append(jpeg)
-            body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
-
-            _ = try? await APIClient.shared.data(
-                "POST", "/api/upload",
-                body: body,
-                contentType: "multipart/form-data; boundary=\(boundary)"
-            )
+        for (i, wrapper) in draft.photos.enumerated() where !wrapper.uploaded {
+            try? await InsightPhotoUploader.upload(wrapper.image, index: i, insightId: insightId)
             draft.photos[i].uploaded = true
         }
     }
@@ -531,5 +489,25 @@ extension InsightEntryViewModel: CLLocationManagerDelegate {
                 manager.requestLocation()
             }
         }
+    }
+}
+
+/// Uploads one photo to an existing entry. Shared by new entries and Edit Review.
+enum InsightPhotoUploader {
+    static func upload(_ image: UIImage, index: Int, insightId: String) async throws {
+        guard let jpeg = image.jpegData(compressionQuality: 0.7) else { return }
+
+        let boundary = UUID().uuidString
+        var body = Data()
+        body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"insightId\"\r\n\r\n\(insightId)\r\n".data(using: .utf8)!)
+        body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"photo_\(index).jpg\"\r\nContent-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+        body.append(jpeg)
+        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+
+        _ = try await APIClient.shared.data(
+            "POST", "/api/upload",
+            body: body,
+            contentType: "multipart/form-data; boundary=\(boundary)"
+        )
     }
 }

@@ -482,6 +482,7 @@ struct MyEntry: Decodable, Identifiable {
     let comment: String?
     let placeType: String?
     let starRating: Int?
+    let isPublic: Bool?
     let createdAt: Date
     let updatedAt: Date?
     let location: MyEntryLocation
@@ -498,6 +499,7 @@ struct MyEntry: Decodable, Identifiable {
 struct MyEntryLocation: Decodable {
     let id: String
     let name: String?
+    let town: String?
     let latitude: Double
     let longitude: Double
     let facilityType: MyEntryFacilityType

@@ -73,6 +73,11 @@ enum AttributeRating: String, CaseIterable {
     case yes = "Yes"
     case no = "No"
     case bad = "Bad" // legacy — kept for backward compatibility with previously saved ratings
+    case easy = "Easy"
+    case okay = "Okay"
+    case goodLuck = "Good Luck"
+    case free = "Free"
+    case paid = "Paid"
 
     /// Returns the API-friendly value (lowercase, ASCII).
     var apiValue: String {
@@ -85,17 +90,30 @@ enum AttributeRating: String, CaseIterable {
         case .yes: return "yes"
         case .no: return "no"
         case .bad: return "bad"
+        case .easy: return "easy"
+        case .okay: return "okay"
+        case .goodLuck: return "good_luck"
+        case .free: return "free"
+        case .paid: return "paid"
         }
     }
 
     static let standardOptions: [AttributeRating] = [.great, .good, .meh, .nope, .na]
     static let booleanOptions: [AttributeRating] = [.yes, .no]
+    static let parkingOptions: [AttributeRating] = [.easy, .okay, .goodLuck]
+    static let airWaterOptions: [AttributeRating] = [.free, .paid, .na]
 
     /// Some attributes use a Yes/No scale instead of the standard 5-level scale.
     static func options(for attributeName: String) -> [AttributeRating] {
         let normalized = attributeName.lowercased()
         if normalized.contains("pet friendly") || normalized.contains("lgbtq") {
             return booleanOptions
+        }
+        if normalized == "parking" {
+            return parkingOptions
+        }
+        if normalized == "air/water" {
+            return airWaterOptions
         }
         return standardOptions
     }
@@ -112,15 +130,20 @@ enum AttributeRatingDisplay {
         case "yes": return "Yes"
         case "no": return "No"
         case "bad": return "Bad"
+        case "easy": return "Easy"
+        case "okay": return "Okay"
+        case "good_luck": return "Good Luck"
+        case "free": return "Free"
+        case "paid": return "Paid"
         default: return ""
         }
     }
 
     static func colorIsPositive(for raw: String) -> Bool? {
         switch raw.lowercased() {
-        case "great", "good", "yes": return true
-        case "meh": return nil
-        case "nope", "no", "bad": return false
+        case "great", "good", "yes", "easy", "free": return true
+        case "meh", "okay", "paid": return nil
+        case "nope", "no", "bad", "good_luck": return false
         default: return nil
         }
     }
@@ -130,16 +153,76 @@ enum AttributeRatingDisplay {
         switch raw.lowercased() {
         case "great":
             return Color(red: 0.00, green: 0.78, blue: 0.20)   // bright green
-        case "good", "yes":
+        case "good", "yes", "easy", "free":
             return Color(red: 0.20, green: 0.55, blue: 0.25)   // medium green
-        case "meh":
+        case "meh", "okay", "paid":
             return Color(red: 0.95, green: 0.65, blue: 0.10)   // amber
-        case "nope", "no", "bad":
+        case "nope", "no", "bad", "good_luck":
             return .red
         default:
             return .secondary
         }
     }
+}
+
+/// Which attributes a user rates for a facility type. Shared by new entries and Edit Review.
+enum EntryAttributeCatalog {
+    /// Facility types that also rate "Air/Water"
+    static let airWaterFacilityTypes: Set<String> = [
+        "EV Charging Stations", "Gas Stations", "Highway Rest Areas", "RV Parks", "Truck Stops"
+    ]
+
+    static func attributeNames(forFacilityTypeName name: String) -> [String] {
+        var names = name.localizedCaseInsensitiveContains("hotel") ? hotelAttributes : defaultAttributes
+        // Air/Water goes right after Parking
+        if airWaterFacilityTypes.contains(name), let parkingIndex = names.firstIndex(of: "Parking") {
+            names.insert("Air/Water", at: parkingIndex + 1)
+        }
+        return names
+    }
+
+    /// Builds the rating rows for a facility type, keeping any ratings already chosen by name.
+    /// Rated attributes from older versions of the app (names no longer in any list) are kept at the end
+    /// so editing doesn't silently drop them; current attributes that don't apply to the type are dropped.
+    static func entries(forFacilityTypeName name: String, keeping existing: [AttributeEntry]) -> [AttributeEntry] {
+        let names = attributeNames(forFacilityTypeName: name)
+        var rows = names.map { attrName -> AttributeEntry in
+            var row = AttributeEntry(name: attrName)
+            row.rating = existing.first { $0.name == attrName }?.rating ?? .na
+            return row
+        }
+        let catalogNames = Set(hotelAttributes + defaultAttributes + ["Air/Water"])
+        rows += existing.filter { !names.contains($0.name) && !catalogNames.contains($0.name) && $0.rating != .na }
+        return rows
+    }
+
+    /// The legacy placeType sent alongside a bundled ("fb-") facility type.
+    static func placeType(forFacilityTypeName name: String) -> String {
+        switch name {
+        case "Hotels":
+            return "Hotel"
+        case "Restaurants", "Coffee Shops", "Breweries/Wineries", "Bakeries":
+            return "Restaurant"
+        case "Gas Stations", "Truck Stops", "EV Charging Stations",
+             "Grocery Stores", "Convenience Stores", "Pharmacies",
+             "Outdoor/Camping Supply Stores", "Laundromats",
+             "Hospitals/Urgent Care", "Pet Boarding/Vet Clinics", "Post Offices":
+            return "Convenience Store"
+        default:
+            return "Rest Area"
+        }
+    }
+
+    private static let hotelAttributes = [
+        "Clean Room", "Clean Bathroom", "Feels Safe", "Friendly Staff",
+        "Price", "Breakfast", "Gov Rate Available", "Parking",
+        "Pet Friendly", "LGBTQ+ Friendly"
+    ]
+
+    private static let defaultAttributes = [
+        "Clean", "Clean Bathroom", "Feels Safe", "Friendly Staff",
+        "Price", "Food Options", "Parking", "Pet Friendly", "LGBTQ+ Friendly"
+    ]
 }
 
 struct AttributeEntry: Identifiable {

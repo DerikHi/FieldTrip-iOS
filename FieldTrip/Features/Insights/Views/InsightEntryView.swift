@@ -326,6 +326,9 @@ struct RatingsStepView: View {
         case .na: return .gray
         case .yes: return .green
         case .no: return .red
+        case .easy, .free: return .green
+        case .okay, .paid: return .yellow
+        case .goodLuck: return .red
         }
     }
 }
