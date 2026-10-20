@@ -178,8 +178,25 @@ struct MyInsightsView: View {
         defer { isLoading = false }
 
         do {
-            let decoded = try await APIClient.shared.get("/api/insights", decode: APIResponse<MyEntriesPage>.self)
-            entries = decoded.data.insights
+            // The backend returns at most 50 entries per page, so keep
+            // requesting pages until we have them all
+            var all: [MyEntry] = []
+            var page = 1
+            while true {
+                let decoded = try await APIClient.shared.get(
+                    "/api/insights",
+                    query: [
+                        URLQueryItem(name: "page", value: String(page)),
+                        URLQueryItem(name: "limit", value: "50"),
+                    ],
+                    decode: APIResponse<MyEntriesPage>.self
+                )
+                all.append(contentsOf: decoded.data.insights)
+                guard page < (decoded.data.pages ?? 1), !decoded.data.insights.isEmpty else { break }
+                page += 1
+            }
+            entries = all
+            errorMessage = nil
         } catch {
             errorMessage = "An error has occurred, please log in again."
         }
@@ -475,6 +492,8 @@ struct IdentifiedURL: Identifiable {
 
 struct MyEntriesPage: Decodable {
     let insights: [MyEntry]
+    /// Total number of pages available for this user's entries
+    let pages: Int?
 }
 
 struct MyEntry: Decodable, Identifiable {

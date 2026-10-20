@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreLocation
+import MapKit
 
 /// Lists nearby (≤5 mi) places of the allowed facility types whose
 /// dominant Clean Bathroom rating is Good or Great. Replaces the old
@@ -66,26 +67,34 @@ struct NearbyBathroomsView: View {
                     ForEach(groupedResults, id: \.facilityType) { group in
                         Section {
                             ForEach(group.locations, id: \.locationId) { loc in
-                                HStack(spacing: 12) {
-                                    Image(systemName: ratingIcon(loc.cleanBathroomRating))
-                                        .foregroundStyle(ratingColor(loc.cleanBathroomRating))
-                                        .font(.title3)
-                                        .frame(width: 28)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(loc.locationName ?? "Unnamed Location")
-                                            .font(.subheadline.weight(.semibold))
-                                    }
-                                    Spacer()
-                                    VStack(alignment: .trailing, spacing: 2) {
-                                        Text(String(format: "%.1f mi", loc.distanceMiles))
-                                            .font(.caption.monospacedDigit())
-                                            .foregroundStyle(.secondary)
-                                        Text((loc.cleanBathroomRating ?? "").capitalized)
-                                            .font(.caption2.weight(.semibold))
+                                // Tapping a row hands off to the system for directions
+                                Button { openDirections(to: loc) } label: {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: ratingIcon(loc.cleanBathroomRating))
                                             .foregroundStyle(ratingColor(loc.cleanBathroomRating))
+                                            .font(.title3)
+                                            .frame(width: 28)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(loc.locationName ?? "Unnamed Location")
+                                                .font(.subheadline.weight(.semibold))
+                                                .foregroundStyle(.primary)
+                                        }
+                                        Spacer()
+                                        VStack(alignment: .trailing, spacing: 2) {
+                                            Text(String(format: "%.1f mi", loc.distanceMiles))
+                                                .font(.caption.monospacedDigit())
+                                                .foregroundStyle(.secondary)
+                                            Text((loc.cleanBathroomRating ?? "").capitalized)
+                                                .font(.caption2.weight(.semibold))
+                                                .foregroundStyle(ratingColor(loc.cleanBathroomRating))
+                                        }
+                                        Image(systemName: "arrow.triangle.turn.up.right.circle")
+                                            .foregroundStyle(Color.accentColor)
                                     }
+                                    .padding(.vertical, 4)
+                                    .contentShape(Rectangle())
                                 }
-                                .padding(.vertical, 4)
+                                .accessibilityHint("Opens directions in your maps app")
                             }
                         } header: {
                             Text(group.facilityType)
@@ -130,6 +139,16 @@ struct NearbyBathroomsView: View {
                 locations: (buckets[type] ?? []).sorted { $0.distanceMiles < $1.distanceMiles }
             )
         }
+    }
+
+    /// Opens driving directions to the location. With a directions launch
+    /// option, iOS routes this to the person's default navigation app where
+    /// they've chosen one, and to Apple Maps otherwise.
+    private func openDirections(to loc: NearbyLocation) {
+        let coordinate = CLLocationCoordinate2D(latitude: loc.latitude, longitude: loc.longitude)
+        let mapItem = MKMapItem(placemark: MKPlacemark(coordinate: coordinate))
+        mapItem.name = loc.locationName
+        mapItem.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: MKLaunchOptionsDirectionsModeDriving])
     }
 
     private func ratingIcon(_ rating: String?) -> String {
