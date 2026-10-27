@@ -308,6 +308,11 @@ private struct PrivacyPolicyContent: View {
                 body: "We collect the names, locations, images, comments on, and ratings of the places you add to the app. When other users use the app they will see the User Name you have selected attached to the places you have rated."
             )
             section(
+                title: "Location Information",
+                isHeading: false,
+                body: "With your permission, Field Trip Pro uses your device's current location while you are using the app, such as when you search for nearby places or view Nearby Bathrooms Rated Good or Great. Your current location is sent to our servers only to find places near you and is not saved to your account or used to track you. The app does not access your location in the background. You can change location access at any time in iOS Settings."
+            )
+            section(
                 title: "Social Features",
                 isHeading: false,
                 body: "We do not collect information (email address, phone number, name, etc.) of the people to whom you send a rated place. Field Trip Pro is not integrated with or in any way feeding information to social media apps."
@@ -320,7 +325,7 @@ private struct PrivacyPolicyContent: View {
             section(
                 title: "How We Use Your Information",
                 isHeading: false,
-                body: "Field Trip Pro uses Firebase (authentication), Prisma (database), Vercel (application hosting), and GitHub (code repository) to operate the app. Each of these services has their own privacy policies."
+                body: "Field Trip Pro uses Firebase (authentication and app verification), Prisma (database), Vercel (application hosting), and GitHub (code repository) to operate the app. To protect the app from misuse, Field Trip Pro uses Apple App Attest to confirm that requests come from a genuine copy of the app on an Apple device. App Attest does not identify you personally or share your content. Each of these services has their own privacy policies."
             )
             section(
                 title: "Data Sharing",
@@ -335,7 +340,7 @@ private struct PrivacyPolicyContent: View {
             section(
                 title: "Your Rights",
                 isHeading: false,
-                body: "You have the right to access, correct, delete, and request portability of your data. Please contact us to exercise these rights."
+                body: "You have the right to access, correct, delete, and request portability of your data. To exercise these rights, please contact us at info@fieldtrip.com."
             )
             section(
                 title: "Data Security",
@@ -351,6 +356,11 @@ private struct PrivacyPolicyContent: View {
                 title: "Changes to This Policy",
                 isHeading: false,
                 body: "We may make changes to this policy. If we do, you will be notified at the email address you used to sign up for the app and with a notification in the app."
+            )
+            section(
+                title: "More Information",
+                isHeading: false,
+                body: "You can find more privacy and policy detail at www.fieldtrippro.com. Questions about this policy can be sent to info@fieldtrip.com."
             )
         }
     }
