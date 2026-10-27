@@ -2,17 +2,16 @@ import SwiftUI
 
 /// The Welcome screen — presented as a sheet from the Home toolbar button
 /// (and automatically when the user first signs in). Shows the brand image
-/// plus Logout, Nearby, Settings, and the swap-image test toggle.
+/// plus Logout, Nearby, and Settings.
 struct LandingView: View {
     let user: AuthUser
     @State private var showSettings = false
     @State private var showNearbyBathrooms = false
-    @State private var useAlternateWelcomeImage = false
 
     var body: some View {
       NavigationStack {
         GeometryReader { geo in
-            Image(useAlternateWelcomeImage ? "NewWelcomeImage" : "LogoWelcome")
+            Image("NewWelcomeImage")
                 .resizable()
                 .scaledToFill()
                 .frame(width: geo.size.width, height: geo.size.height)
@@ -36,15 +35,6 @@ struct LandingView: View {
                     }
                 }
                 .accessibilityLabel("Logout")
-            }
-            ToolbarItem(placement: .principal) {
-                Button(action: {
-                    withAnimation { useAlternateWelcomeImage.toggle() }
-                }) {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .font(.body.weight(.medium))
-                }
-                .accessibilityLabel("Swap welcome image")
             }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: { showNearbyBathrooms = true }) {
