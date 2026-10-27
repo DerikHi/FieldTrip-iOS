@@ -340,7 +340,7 @@ private struct PrivacyPolicyContent: View {
             section(
                 title: "Your Rights",
                 isHeading: false,
-                body: "You have the right to access, correct, delete, and request portability of your data. To exercise these rights, please contact us at info@fieldtrip.com."
+                body: "You have the right to access, correct, delete, and request portability of your data. To exercise these rights, please contact us at info@fieldtrippro.com."
             )
             section(
                 title: "Data Security",
@@ -360,7 +360,7 @@ private struct PrivacyPolicyContent: View {
             section(
                 title: "More Information",
                 isHeading: false,
-                body: "You can find more privacy and policy detail at www.fieldtrippro.com. Questions about this policy can be sent to info@fieldtrip.com."
+                body: "You can find more privacy and policy detail at www.fieldtrippro.com. Questions about this policy can be sent to info@fieldtrippro.com."
             )
         }
     }
